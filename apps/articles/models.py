@@ -32,6 +32,14 @@ class Article(DomainModel):
     summary = models.TextField(blank=True)
     content = models.TextField(blank=True)
     content_hash = models.CharField(max_length=64, unique=True)
+    importance_score = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        db_index=True,
+    )
+    summary_generated_at = models.DateTimeField(null=True, blank=True)
+    classified_at = models.DateTimeField(null=True, blank=True)
+    keywords_generated_at = models.DateTimeField(null=True, blank=True)
     status = models.CharField(
         max_length=20,
         choices=ArticleStatus.choices,
@@ -50,6 +58,8 @@ class Article(DomainModel):
         indexes = [
             models.Index(fields=["status", "published_at"]),
             models.Index(fields=["source", "status"]),
+            models.Index(fields=["importance_score", "published_at"]),
+            models.Index(fields=["category", "importance_score"]),
         ]
 
     def __str__(self) -> str:
