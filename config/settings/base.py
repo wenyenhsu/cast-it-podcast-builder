@@ -132,6 +132,29 @@ CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
+CELERY_TASK_ALWAYS_EAGER = env.bool("CELERY_TASK_ALWAYS_EAGER", default=False)
+CELERY_TASK_EAGER_PROPAGATES = True
+CELERY_TASK_TIME_LIMIT = env.int("CELERY_TASK_TIME_LIMIT", default=3600)
+CELERY_TASK_SOFT_TIME_LIMIT = env.int("CELERY_TASK_SOFT_TIME_LIMIT", default=3300)
+CELERY_TASK_MAX_RETRIES = env.int("CELERY_TASK_MAX_RETRIES", default=3)
+CELERY_DEFAULT_QUEUE = env("CELERY_DEFAULT_QUEUE", default="default")
+CELERY_RETRY_BASE_DELAY = env.int("CELERY_RETRY_BASE_DELAY", default=60)
+CELERY_RETRY_MAX_DELAY = env.int("CELERY_RETRY_MAX_DELAY", default=900)
+
+# Beat cron schedules (minute hour day month day_of_week)
+BEAT_IMPORT_NEWS_CRON = env("BEAT_IMPORT_NEWS_CRON", default="0 6 * * *")
+BEAT_EPISODE_PLANNING_CRON = env("BEAT_EPISODE_PLANNING_CRON", default="0 7 * * *")
+BEAT_GENERATE_SCRIPT_CRON = env("BEAT_GENERATE_SCRIPT_CRON", default="0 8 * * *")
+BEAT_GENERATE_AUDIO_CRON = env("BEAT_GENERATE_AUDIO_CRON", default="0 9 * * *")
+BEAT_PUBLISH_EPISODE_CRON = env("BEAT_PUBLISH_EPISODE_CRON", default="0 10 * * *")
+BEAT_RETRY_SWEEP_CRON = env("BEAT_RETRY_SWEEP_CRON", default="*/30 * * * *")
+BEAT_HEALTH_CHECK_CRON = env("BEAT_HEALTH_CHECK_CRON", default="*/15 * * * *")
+
+from infrastructure.celery.beat_schedule import build_beat_schedule  # noqa: E402
+from infrastructure.celery.routing import TASK_ROUTES  # noqa: E402
+
+CELERY_BEAT_SCHEDULE = build_beat_schedule()
+CELERY_TASK_ROUTES = TASK_ROUTES
 
 # Django REST Framework
 REST_FRAMEWORK = {
