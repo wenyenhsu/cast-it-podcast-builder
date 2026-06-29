@@ -32,6 +32,11 @@ class LLMService:
         self._settings = settings or LLMSettings.from_django_settings()
         self._provider = provider or LLMProviderFactory(self._settings).create()
 
+    @property
+    def settings(self) -> LLMSettings:
+        """Return the active LLM settings."""
+        return self._settings
+
     def generate(self, request: LLMRequest) -> LLMResponse:
         """Generate a completion using the configured provider."""
         self._validate_request(request)

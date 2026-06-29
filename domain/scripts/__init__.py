@@ -1,0 +1,1 @@
+"""Script generation domain layer."""
