@@ -109,6 +109,9 @@ USE_TZ = True
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
+MEDIA_URL = "media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Redis / Cache
@@ -173,3 +176,13 @@ LLM_TEMPERATURE = env.float("LLM_TEMPERATURE", default=0.7)
 LLM_TIMEOUT = env.float("LLM_TIMEOUT", default=60.0)
 LLM_RETRY_COUNT = env.int("LLM_RETRY_COUNT", default=3)
 LLM_MAX_PROMPT_CHARS = env.int("LLM_MAX_PROMPT_CHARS", default=100_000)
+
+# TTS (Chatterbox)
+TTS_PROVIDER = env("TTS_PROVIDER", default="chatterbox")
+CHATTERBOX_BASE_URL = env("CHATTERBOX_BASE_URL", default="http://localhost:8004")
+CHATTERBOX_TIMEOUT = env.float("CHATTERBOX_TIMEOUT", default=120.0)
+CHATTERBOX_DEFAULT_VOICE = env("CHATTERBOX_DEFAULT_VOICE", default="")
+CHATTERBOX_AUDIO_FORMAT = env("CHATTERBOX_AUDIO_FORMAT", default="wav")
+TTS_MAX_TEXT_LENGTH = env.int("TTS_MAX_TEXT_LENGTH", default=5000)
+TTS_WORDS_PER_MINUTE = env.int("TTS_WORDS_PER_MINUTE", default=150)
+AUDIO_STORAGE_SUBDIR = env("AUDIO_STORAGE_SUBDIR", default="audio")
