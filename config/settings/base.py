@@ -225,3 +225,24 @@ AUDIO_TARGET_LUFS = env.float("AUDIO_TARGET_LUFS", default=-16.0)
 FFMPEG_BINARY = env("FFMPEG_BINARY", default="ffmpeg")
 FFPROBE_BINARY = env("FFPROBE_BINARY", default="ffprobe")
 FFMPEG_TIMEOUT = env.float("FFMPEG_TIMEOUT", default=300.0)
+
+# Publishing
+YOUTUBE_API_KEY = env("YOUTUBE_API_KEY", default="")
+YOUTUBE_CLIENT_ID = env("YOUTUBE_CLIENT_ID", default="")
+YOUTUBE_CLIENT_SECRET = env("YOUTUBE_CLIENT_SECRET", default="")
+YOUTUBE_CHANNEL_ID = env("YOUTUBE_CHANNEL_ID", default="")
+ENABLE_YOUTUBE_PUBLISHING = env.bool("ENABLE_YOUTUBE_PUBLISHING", default=False)
+ENABLE_RSS_PUBLISHING = env.bool("ENABLE_RSS_PUBLISHING", default=True)
+RSS_FEED_TITLE = env("RSS_FEED_TITLE", default="Cast It Podcast")
+RSS_FEED_SUBTITLE = env(
+    "RSS_FEED_SUBTITLE",
+    default="AI-generated podcast episodes",
+)
+RSS_FEED_AUTHOR = env("RSS_FEED_AUTHOR", default="Cast It")
+RSS_FEED_LANGUAGE = env("RSS_FEED_LANGUAGE", default="en-us")
+RSS_FEED_SITE_URL = env("RSS_FEED_SITE_URL", default="https://example.com")
+RSS_FEED_AUDIO_BASE_URL = env(
+    "RSS_FEED_AUDIO_BASE_URL",
+    default="https://example.com/media",
+)
+RSS_FEED_OUTPUT_PATH = env("RSS_FEED_OUTPUT_PATH", default="feeds/podcast.xml")

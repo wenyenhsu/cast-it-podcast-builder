@@ -174,15 +174,37 @@ class PublishEpisodeHandler(BaseJobHandler):
     queue = QUEUE_PUBLISHING
 
     def execute(self, job: Job) -> dict[str, Any]:
+        from domain.publish.exceptions import PublishValidationError
+        from services.publish.service import PublishService
+
+        service = PublishService()
+        payload = job.payload or {}
+
+        if payload.get("scheduled"):
+            results = service.publish_ready_episodes()
+            return {
+                "scheduled": True,
+                "published_count": len(results),
+                "episode_ids": [str(result.episode_id) for result in results],
+            }
+
         episode_id = _require_payload_key(job, "episode_id")
-        logger.info(
-            "Publish episode job stub executed",
-            extra={"event": "publish_episode_stub", "episode_id": str(episode_id)},
-        )
+        platforms = payload.get("platforms")
+        try:
+            result = service.publish_episode(
+                episode_id,
+                platforms=platforms,
+            )
+        except PublishValidationError as exc:
+            raise JobPermanentError(str(exc)) from exc
+
         return {
-            "episode_id": str(episode_id),
-            "status": "deferred",
-            "message": "Publishing integration is not implemented yet.",
+            "episode_id": str(result.episode_id),
+            "platforms": [item.platform for item in result.platform_results],
+            "published_urls": {
+                item.platform: item.published_url for item in result.platform_results
+            },
+            "publish_job_ids": [str(job_id) for job_id in result.publish_job_ids],
         }
 
 

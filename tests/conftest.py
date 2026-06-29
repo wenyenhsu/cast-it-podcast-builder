@@ -3,6 +3,8 @@
 import pytest
 from django.test import Client
 
+pytest_plugins = ["tests.services.publish.conftest"]
+
 
 @pytest.fixture
 def api_client() -> Client:
