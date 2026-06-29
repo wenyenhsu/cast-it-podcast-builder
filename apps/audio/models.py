@@ -104,6 +104,7 @@ class AudioAsset(DomainModel):
         help_text="File size in bytes.",
     )
     checksum = models.CharField(max_length=64, blank=True, db_index=True)
+    is_final_episode_audio = models.BooleanField(default=False, db_index=True)
     status = models.CharField(
         max_length=20,
         choices=AudioAssetStatus.choices,
@@ -116,9 +117,12 @@ class AudioAsset(DomainModel):
         indexes = [
             models.Index(fields=["episode", "status"]),
             models.Index(fields=["episode", "script_segment"]),
+            models.Index(fields=["episode", "is_final_episode_audio"]),
         ]
 
     def __str__(self) -> str:
+        if self.is_final_episode_audio:
+            return f"Final episode audio — {self.episode.title}"
         if self.script_segment_id:
             return f"Segment audio — {self.episode.title}"
         return f"Episode audio — {self.episode.title}"

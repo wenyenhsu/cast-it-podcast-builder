@@ -34,13 +34,14 @@ class AudioAssetAdmin(admin.ModelAdmin):
         "script_segment",
         "provider",
         "voice",
+        "is_final_episode_audio",
         "status",
         "duration",
         "format",
         "file_size",
         "created_at",
     )
-    list_filter = ("status", "provider", "format")
+    list_filter = ("status", "provider", "format", "is_final_episode_audio")
     search_fields = ("episode__title", "file_path", "checksum", "voice")
     readonly_fields = ("id", "created_at", "updated_at", "generated_at")
     autocomplete_fields = ("episode", "script_segment")
