@@ -2,10 +2,6 @@
 
 import logging
 from dataclasses import dataclass, field
-
-from django.db import transaction
-from django.utils.text import slugify
-
 from typing import TYPE_CHECKING
 
 from django.db import transaction

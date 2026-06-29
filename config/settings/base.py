@@ -163,3 +163,13 @@ LOGGING = {
         "level": "INFO",
     },
 }
+
+# LLM
+LLM_PROVIDER = env("LLM_PROVIDER", default="ollama")
+OLLAMA_BASE_URL = env("OLLAMA_BASE_URL", default="http://localhost:11434")
+OLLAMA_CHAT_MODEL = env("OLLAMA_CHAT_MODEL", default="")
+OLLAMA_EMBED_MODEL = env("OLLAMA_EMBED_MODEL", default="")
+LLM_TEMPERATURE = env.float("LLM_TEMPERATURE", default=0.7)
+LLM_TIMEOUT = env.float("LLM_TIMEOUT", default=60.0)
+LLM_RETRY_COUNT = env.int("LLM_RETRY_COUNT", default=3)
+LLM_MAX_PROMPT_CHARS = env.int("LLM_MAX_PROMPT_CHARS", default=100_000)
