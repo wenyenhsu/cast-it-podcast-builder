@@ -1,0 +1,1 @@
+"""News service tests package."""
