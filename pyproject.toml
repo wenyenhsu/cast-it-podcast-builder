@@ -65,7 +65,14 @@ module = ["pgvector.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = ["api.*", "django_filters.*", "services.admin.*", "services.knowledge.*"]
+module = [
+    "api.*",
+    "django_filters.*",
+    "services.admin.*",
+    "services.knowledge.*",
+    "services.workflow.*",
+    "domain.workflow.*",
+]
 disable_error_code = ["type-arg", "misc", "import-untyped", "no-untyped-def", "no-any-return", "assignment", "var-annotated", "union-attr"]
 
 [[tool.mypy.overrides]]

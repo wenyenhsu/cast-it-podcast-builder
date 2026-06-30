@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     "apps.scheduler",
     "apps.providers",
     "apps.knowledge",
+    "apps.workflow",
 ]
 
 MIDDLEWARE = [
