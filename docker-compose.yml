@@ -1,3 +1,6 @@
+# Local development stack
+# Usage: docker compose up --build
+
 services:
   db:
     image: pgvector/pgvector:pg16
@@ -8,37 +11,45 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cast_it} -d ${POSTGRES_DB:-cast_it}"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-cast_it} -d ${POSTGRES_DB:-cast_it}",
+        ]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
 
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
 
   web:
     build:
       context: .
       dockerfile: docker/Dockerfile
+      target: development
     command: web
     env_file:
       - .env
     environment:
+      DJANGO_SETTINGS_MODULE: config.settings.development
+      ENVIRONMENT: development
       POSTGRES_HOST: db
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
+      SKIP_WAIT_FOR_SERVICES: "false"
     ports:
-      - "8000:8000"
+      - "${WEB_PORT:-8000}:8000"
     depends_on:
       db:
         condition: service_healthy
@@ -46,15 +57,25 @@ services:
         condition: service_healthy
     volumes:
       - .:/app
+      - media_data:/app/media
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health/live/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
 
   celery-worker:
     build:
       context: .
       dockerfile: docker/Dockerfile
+      target: development
     command: celery-worker
     env_file:
       - .env
     environment:
+      DJANGO_SETTINGS_MODULE: config.settings.development
+      ENVIRONMENT: development
       POSTGRES_HOST: db
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/0
@@ -64,17 +85,23 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      web:
+        condition: service_started
     volumes:
       - .:/app
+      - media_data:/app/media
 
   celery-beat:
     build:
       context: .
       dockerfile: docker/Dockerfile
+      target: development
     command: celery-beat
     env_file:
       - .env
     environment:
+      DJANGO_SETTINGS_MODULE: config.settings.development
+      ENVIRONMENT: development
       POSTGRES_HOST: db
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/0
@@ -84,8 +111,11 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      web:
+        condition: service_started
     volumes:
       - .:/app
 
 volumes:
   postgres_data:
+  media_data:

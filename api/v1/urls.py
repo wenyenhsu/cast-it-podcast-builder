@@ -41,6 +41,7 @@ from api.v1.views.observability import (
 from api.v1.views.jobs import JobViewSet, PublishJobViewSet
 from api.v1.views.providers import NewsSourceViewSet, ProviderHealthCheckViewSet
 from api.v1.views.scripts import ScriptSegmentViewSet, ScriptViewSet
+from api.v1.views.version import VersionView
 
 router = DefaultRouter()
 router.register(r"articles", ArticleViewSet, basename="article")
@@ -88,6 +89,7 @@ urlpatterns = [
         DashboardSummaryView.as_view(),
         name="observability-dashboard",
     ),
+    path("version/", VersionView.as_view(), name="version"),
     path("schema/", SpectacularAPIView.as_view(), name="schema"),
     path("docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),
     path("redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc"),

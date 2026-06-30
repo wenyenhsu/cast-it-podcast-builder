@@ -75,6 +75,7 @@ module = [
     "domain.workflow.*",
     "domain.observability.*",
     "infrastructure.observability.*",
+    "infrastructure.deployment.*",
     "apps.observability.*",
 ]
 disable_error_code = ["type-arg", "misc", "import-untyped", "no-untyped-def", "no-any-return", "assignment", "var-annotated", "union-attr"]
