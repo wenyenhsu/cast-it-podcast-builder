@@ -95,6 +95,10 @@ class RSSProvider(BaseNewsProvider):
                 )
             )
 
+        limit = self.config.max_articles_per_import
+        if limit > 0:
+            articles = articles[:limit]
+
         return articles
 
     def health_check(self) -> bool:

@@ -77,3 +77,21 @@ class TestRSSProvider:
         config = ProviderConfig(source_name="No URL", provider_type="rss")
         provider = RSSProvider(config)
         assert provider.collect() == []
+
+    def test_normalize_limits_articles_when_configured(self) -> None:
+        feed = {
+            "feed": {},
+            "entries": [
+                {"title": f"Article {index}", "link": f"https://example.com/{index}"}
+                for index in range(5)
+            ],
+        }
+        config = ProviderConfig(
+            source_name="Limited Feed",
+            provider_type="rss",
+            max_articles_per_import=3,
+        )
+        provider = RSSProvider(config)
+        articles = provider.normalize(feed)  # type: ignore[arg-type]
+        assert len(articles) == 3
+        assert articles[0].title == "Article 0"

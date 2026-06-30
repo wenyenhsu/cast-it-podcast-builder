@@ -1,0 +1,122 @@
+<div class="row g-4 mb-4">
+  <div class="col-12 col-xl-4">
+    <div class="card p-4 h-100">
+      <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+        <div>
+          <h2 class="h5 mb-1">Manual Provider</h2>
+          <p class="text-secondary small mb-0">Direct article entry without a feed.</p>
+        </div>
+        <span class="insight-icon"><i class="bi bi-pencil-square"></i></span>
+      </div>
+      <dl class="row mb-0 small">
+        <dt class="col-5 text-secondary">Source</dt>
+        <dd class="col-7 fw-semibold mb-2">{{ manual_provider.name }}</dd>
+        <dt class="col-5 text-secondary">Type</dt>
+        <dd class="col-7 text-uppercase mb-2">{{ manual_provider.provider_type }}</dd>
+        <dt class="col-5 text-secondary">Language</dt>
+        <dd class="col-7 mb-2">{{ manual_provider.language }}</dd>
+        <dt class="col-5 text-secondary">Articles</dt>
+        <dd class="col-7 mb-2">{{ manual_provider.article_count }}</dd>
+        <dt class="col-5 text-secondary">Status</dt>
+        <dd class="col-7 mb-0">
+          {% if manual_provider.enabled %}
+          <span class="badge text-bg-success">Enabled</span>
+          {% else %}
+          <span class="badge text-bg-secondary">Disabled</span>
+          {% endif %}
+        </dd>
+      </dl>
+      <form method="post" class="mt-3">
+        {% csrf_token %}
+        <input type="hidden" name="tab" value="sources">
+        <input type="hidden" name="resource" value="manual">
+        <input type="hidden" name="provider_action" value="toggle_enabled">
+        <input type="hidden" name="source_id" value="{{ manual_provider.id }}">
+        <input type="hidden" name="enabled" value="{% if manual_provider.enabled %}false{% else %}true{% endif %}">
+        <button type="submit" class="btn btn-sm btn-outline-secondary">
+          {% if manual_provider.enabled %}Disable Provider{% else %}Enable Provider{% endif %}
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <div class="col-12 col-xl-8">
+    <div class="card p-4 h-100">
+      <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+        <div>
+          <h2 class="h5 mb-1">Add Article</h2>
+          <p class="text-secondary small mb-0">Paste or type content for the manual information resource provider.</p>
+        </div>
+        <span class="insight-icon"><i class="bi bi-plus-circle"></i></span>
+      </div>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="tab" value="sources">
+        <input type="hidden" name="resource" value="manual">
+        <input type="hidden" name="provider_action" value="create_manual_article">
+        <div class="row g-3">
+          <div class="col-12 col-md-6">
+            <label class="form-label small text-secondary">Title</label>
+            <input type="text" name="article_title" class="form-control" required value="{{ manual_form_defaults.title }}" placeholder="Article headline">
+          </div>
+          <div class="col-12 col-md-6">
+            <label class="form-label small text-secondary">Author</label>
+            <input type="text" name="article_author" class="form-control" value="{{ manual_form_defaults.author }}" placeholder="Optional">
+          </div>
+          <div class="col-12">
+            <label class="form-label small text-secondary">URL</label>
+            <input type="url" name="article_url" class="form-control" value="{{ manual_form_defaults.url }}" placeholder="Optional — auto-generated if empty">
+          </div>
+          <div class="col-12">
+            <label class="form-label small text-secondary">Summary</label>
+            <textarea name="article_summary" class="form-control" rows="2" placeholder="Short summary (optional if content is provided)">{{ manual_form_defaults.summary }}</textarea>
+          </div>
+          <div class="col-12">
+            <label class="form-label small text-secondary">Content</label>
+            <textarea name="article_content" class="form-control" rows="8" placeholder="Full article text">{{ manual_form_defaults.content }}</textarea>
+            <div class="form-text">Provide content, summary, or both.</div>
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary"{% if not manual_provider.enabled %} disabled{% endif %}>Add Article</button>
+            {% if not manual_provider.enabled %}
+            <span class="text-secondary small ms-2">Enable the manual provider to add articles.</span>
+            {% endif %}
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="card p-4">
+  <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+    <div>
+      <h2 class="h5 mb-1">Recent Manual Articles</h2>
+      <p class="text-secondary small mb-0">Articles entered through the manual provider.</p>
+    </div>
+    <span class="insight-icon"><i class="bi bi-journal-text"></i></span>
+  </div>
+  {% if recent_articles %}
+  <div class="table-responsive">
+    <table class="ops-table">
+      <thead>
+        <tr><th>Title</th><th>Added</th></tr>
+      </thead>
+      <tbody>
+        {% for article in recent_articles %}
+        <tr>
+          <td>
+            <a href="{% url 'operations:article_detail' article.id %}" class="article-title-link">
+              {{ article.title|truncatechars:80 }}
+            </a>
+          </td>
+          <td class="text-secondary text-nowrap">{{ article.created_at }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">No manual articles yet. Use the form above to add one.</div>
+  {% endif %}
+</div>

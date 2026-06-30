@@ -51,11 +51,116 @@ def test_providers_page_renders(admin_client) -> None:
 
 @pytest.mark.django_db
 def test_provider_tabs_render(admin_client) -> None:
-    for tab, marker in (("llm", "Available Models"), ("tts", "Active Voice")):
+    for tab, marker in (
+        ("llm", "Available Models"),
+        ("tts", "Active Voice"),
+        ("sources", "Information Resources"),
+    ):
         response = admin_client.get(reverse("operations:providers"), {"tab": tab})
         assert response.status_code == 200
         content = response.content.decode()
-        assert marker in content
+        if tab == "sources":
+            assert "RSS Provider" in content
+            assert "Manual Provider" in content
+            assert "Add RSS Source" in content
+        else:
+            assert marker in content
+
+
+@pytest.mark.django_db
+def test_information_resource_subtabs_render(admin_client) -> None:
+    rss = admin_client.get(
+        reverse("operations:providers"),
+        {"tab": "sources", "resource": "rss"},
+    )
+    assert rss.status_code == 200
+    rss_content = rss.content.decode()
+    assert "RSS Sources" in rss_content
+    assert "Add RSS Source" in rss_content
+
+    manual = admin_client.get(
+        reverse("operations:providers"),
+        {"tab": "sources", "resource": "manual"},
+    )
+    assert manual.status_code == 200
+    manual_content = manual.content.decode()
+    assert "Manual Provider" in manual_content
+    assert "Add Article" in manual_content
+    assert "Recent Manual Articles" in manual_content
+
+
+@pytest.mark.django_db
+def test_create_manual_article_from_providers_ui(admin_client) -> None:
+    response = admin_client.post(
+        reverse("operations:providers"),
+        {
+            "tab": "sources",
+            "resource": "manual",
+            "provider_action": "create_manual_article",
+            "article_title": "UI Manual Article",
+            "article_content": "Created from the operations dashboard.",
+        },
+    )
+    assert response.status_code == 302
+    assert "resource=manual" in response.url
+    assert Article.objects.filter(title="UI Manual Article").exists()
+
+
+@pytest.mark.django_db
+def test_create_rss_source_from_providers_ui(admin_client) -> None:
+    response = admin_client.post(
+        reverse("operations:providers"),
+        {
+            "tab": "sources",
+            "resource": "rss",
+            "provider_action": "create_source",
+            "name": "UI Feed",
+            "rss_url": "https://example.com/feed.xml",
+            "language": "en",
+            "enabled": "on",
+        },
+    )
+    assert response.status_code == 302
+    assert "resource=rss" in response.url
+    assert NewsSource.objects.filter(name="UI Feed").exists()
+
+
+@pytest.mark.django_db
+def test_article_detail_view(admin_client, news_source: NewsSource) -> None:
+    article = Article.objects.create(
+        title="Detail Article",
+        source=news_source,
+        url="https://example.com/detail",
+        content_hash="detail-hash",
+        summary="Short summary",
+        content="Full article body text.",
+        status=ArticleStatus.COLLECTED,
+    )
+    response = admin_client.get(
+        reverse("operations:article_detail", args=[article.pk]),
+    )
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert "Detail Article" in content
+    assert "Full article body text." in content
+    assert "Short summary" in content
+
+
+@pytest.mark.django_db
+def test_article_title_links_to_detail(admin_client, news_source: NewsSource) -> None:
+    article = Article.objects.create(
+        title="Linked RSS Article",
+        source=news_source,
+        url="https://example.com/linked",
+        content_hash="linked-hash",
+        status=ArticleStatus.COLLECTED,
+    )
+    response = admin_client.get(
+        reverse("operations:providers"),
+        {"tab": "sources", "resource": "rss"},
+    )
+    assert response.status_code == 200
+    assert reverse("operations:article_detail", args=[article.pk]) in response.content.decode()
 
 
 @pytest.mark.django_db

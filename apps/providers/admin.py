@@ -16,6 +16,7 @@ class NewsSourceAdmin(AdminActionMixin, admin.ModelAdmin):
         "name",
         "provider_type",
         "language",
+        "max_articles_per_import",
         "enabled",
         "last_successful_import",
         "last_failed_import",

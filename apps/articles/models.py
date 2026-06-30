@@ -46,6 +46,11 @@ class Article(DomainModel):
         default=ArticleStatus.PENDING,
         db_index=True,
     )
+    selected_for_script = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text="Include this article as source material for script generation.",
+    )
     tags = models.ManyToManyField(
         "articles.Tag",
         through="articles.ArticleTag",

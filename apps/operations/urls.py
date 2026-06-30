@@ -8,6 +8,7 @@ app_name = "operations"
 
 urlpatterns = [
     path("", views.dashboard, name="dashboard"),
+    path("content/", views.content, name="content"),
     path("providers/", views.providers, name="providers"),
     path("providers/llm/", views.llm_provider_dashboard, name="llm"),
     path("providers/tts/", views.tts_provider_dashboard, name="tts"),
@@ -15,6 +16,11 @@ urlpatterns = [
     path("health/", views.health_dashboard, name="health"),
     path("metrics/", views.metrics_dashboard, name="metrics"),
     path("logs/", views.logs_viewer, name="logs"),
+    path(
+        "articles/<uuid:article_id>/",
+        views.article_detail,
+        name="article_detail",
+    ),
     path(
         "pipeline/<uuid:episode_id>/",
         views.episode_pipeline,

@@ -1,0 +1,161 @@
+{% extends "operations/base.html" %}
+
+{% block title %}Content | Cast It{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between gap-3 align-items-md-center mb-4">
+  <div>
+    <h1 class="h3 mb-1">Content</h1>
+    <p class="text-secondary mb-0">
+      All articles in one library. Choose RSS and manual items as script source material.
+    </p>
+  </div>
+</div>
+
+{% if error %}
+<div class="alert alert-danger alert-dismissible fade show" role="alert">
+  {{ error }}
+  <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+{% endif %}
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="card p-3 h-100">
+      <div class="stat-label text-secondary">Total Articles</div>
+      <div class="h4 fw-bold mb-0">{{ article_totals.total_articles }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card p-3 h-100">
+      <div class="stat-label text-secondary">RSS Articles</div>
+      <div class="h4 fw-bold mb-0">{{ article_totals.rss_articles }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card p-3 h-100">
+      <div class="stat-label text-secondary">Manual Articles</div>
+      <div class="h4 fw-bold mb-0">{{ article_totals.manual_articles }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card p-3 h-100">
+      <div class="stat-label text-secondary">Script Sources</div>
+      <div class="h4 fw-bold mb-0">{{ article_totals.selected_for_script }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="card p-4">
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-start gap-3 mb-3">
+    <div>
+      <h2 class="h5 mb-1">Articles</h2>
+      <p class="text-secondary small mb-0">
+        Check articles to include as script source material. Saving updates the draft episode when one exists.
+      </p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+      <a class="btn btn-sm {% if content_filter == 'all' %}btn-primary{% else %}btn-outline-secondary{% endif %}" href="{% url 'operations:content' %}">All</a>
+      <a class="btn btn-sm {% if content_filter == 'rss' %}btn-primary{% else %}btn-outline-secondary{% endif %}" href="?type=rss"><i class="bi bi-rss me-1"></i>RSS</a>
+      <a class="btn btn-sm {% if content_filter == 'manual' %}btn-primary{% else %}btn-outline-secondary{% endif %}" href="?type=manual"><i class="bi bi-pencil-square me-1"></i>Manual</a>
+    </div>
+  </div>
+
+  <form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="content_action" value="save_script_sources">
+    <input type="hidden" name="type" value="{{ content_filter }}">
+
+    {% if articles %}
+    <div class="table-responsive">
+      <table class="ops-table content-table">
+        <thead>
+          <tr>
+            <th class="content-check-col">
+              <input class="form-check-input" type="checkbox" id="selectAllScriptSources" aria-label="Select all">
+            </th>
+            <th>Title</th>
+            <th>Type</th>
+            <th>Source</th>
+            <th>Imported</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for article in articles %}
+          <input type="hidden" name="article_scope_ids" value="{{ article.id }}">
+          <tr>
+            <td>
+              <input
+                class="form-check-input script-source-check"
+                type="checkbox"
+                name="script_source_ids"
+                value="{{ article.id }}"
+                {% if article.selected_for_script %}checked{% endif %}
+                aria-label="Use {{ article.title }} for script"
+              >
+            </td>
+            <td>
+              <a href="{% url 'operations:article_detail' article.id %}" class="article-title-link">
+                {{ article.title|truncatechars:72 }}
+              </a>
+            </td>
+            <td>
+              {% if article.provider_type == "manual" %}
+              <span class="badge text-bg-light border text-secondary"><i class="bi bi-pencil-square me-1"></i>Manual</span>
+              {% else %}
+              <span class="badge text-bg-light border text-secondary"><i class="bi bi-rss me-1"></i>RSS</span>
+              {% endif %}
+            </td>
+            <td class="text-secondary">{{ article.source_name }}</td>
+            <td class="text-secondary text-nowrap">{{ article.created_at }}</td>
+            <td>
+              {% if article.selected_for_script %}
+              <span class="badge text-bg-primary">Script Source</span>
+              {% else %}
+              <span class="badge text-bg-light border text-secondary">{{ article.status }}</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="d-flex flex-wrap gap-2 mt-4">
+      <button type="submit" class="btn btn-primary">Save Script Sources</button>
+    </div>
+    {% else %}
+    <div class="empty-state">
+      No articles yet.
+      <a href="{% url 'operations:providers' %}?tab=sources&resource=rss">Add RSS</a>
+      or
+      <a href="{% url 'operations:providers' %}?tab=sources&resource=manual">manual content</a>
+      in Providers.
+    </div>
+    {% endif %}
+  </form>
+</div>
+
+<script>
+  (function () {
+    const selectAll = document.getElementById("selectAllScriptSources");
+    const checks = document.querySelectorAll(".script-source-check");
+    if (!selectAll || !checks.length) return;
+
+    const syncSelectAll = () => {
+      const checkedCount = Array.from(checks).filter((item) => item.checked).length;
+      selectAll.checked = checkedCount === checks.length;
+      selectAll.indeterminate = checkedCount > 0 && checkedCount < checks.length;
+    };
+
+    selectAll.addEventListener("change", () => {
+      checks.forEach((item) => {
+        item.checked = selectAll.checked;
+      });
+    });
+
+    checks.forEach((item) => item.addEventListener("change", syncSelectAll));
+    syncSelectAll();
+  })();
+</script>
+{% endblock %}

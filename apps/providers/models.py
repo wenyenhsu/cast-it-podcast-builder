@@ -25,6 +25,10 @@ class NewsSource(DomainModel):
     rss_url = models.URLField(max_length=500, blank=True)
     language = models.CharField(max_length=10, default="en", db_index=True)
     enabled = models.BooleanField(default=True, db_index=True)
+    max_articles_per_import = models.PositiveSmallIntegerField(
+        default=0,
+        help_text="Maximum articles to import per run (0 = no limit).",
+    )
 
     class Meta:
         ordering = ["name"]

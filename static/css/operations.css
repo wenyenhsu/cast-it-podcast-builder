@@ -210,3 +210,29 @@ body {
   padding-top: 0.85rem;
   padding-bottom: 0.85rem;
 }
+
+.article-title-link {
+  color: #0f172a;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.article-title-link:hover {
+  color: #0d6efd;
+  text-decoration: underline;
+}
+
+.article-body {
+  line-height: 1.7;
+  color: #334155;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.content-table .content-check-col {
+  width: 2.5rem;
+}
+
+.content-table .form-check-input {
+  margin-top: 0;
+}

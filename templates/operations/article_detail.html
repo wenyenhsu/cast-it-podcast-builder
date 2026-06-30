@@ -1,0 +1,75 @@
+{% extends "operations/base.html" %}
+
+{% block title %}{{ title }} | Cast It{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between gap-3 align-items-md-center mb-4">
+  <div>
+    <h1 class="h3 mb-1">{{ article.title }}</h1>
+    <p class="text-secondary mb-0">
+      {{ article.source.name }}
+      <span class="badge text-bg-light border ms-1 text-uppercase">{{ article.source.provider_type }}</span>
+      <span class="badge text-bg-light border ms-1">{{ article.status }}</span>
+      {% if article.selected_for_script %}
+      <span class="badge text-bg-primary ms-1">Script Source</span>
+      {% endif %}
+    </p>
+  </div>
+  <div class="d-flex flex-wrap gap-2">
+    <a class="btn btn-outline-secondary btn-sm" href="{{ back_url }}">
+      <i class="bi bi-arrow-left me-1"></i>Back to Content
+    </a>
+    <a class="btn btn-outline-secondary btn-sm" href="{{ providers_url }}">
+      <i class="bi bi-hdd-network me-1"></i>Providers
+    </a>
+    {% if article.url and "manual.cast-it.local" not in article.url %}
+    <a class="btn btn-outline-primary btn-sm" href="{{ article.url }}" target="_blank" rel="noopener">
+      <i class="bi bi-box-arrow-up-right me-1"></i>Original URL
+    </a>
+    {% endif %}
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'admin:articles_article_change' article.pk %}">
+      <i class="bi bi-pencil me-1"></i>Edit in Admin
+    </a>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-12 col-lg-4">
+    <div class="card p-4 h-100">
+      <h2 class="h6 text-secondary text-uppercase mb-3">Metadata</h2>
+      <dl class="row mb-0 small">
+        <dt class="col-5 text-secondary">Author</dt>
+        <dd class="col-7 mb-2">{{ article.author|default:"—" }}</dd>
+        <dt class="col-5 text-secondary">Language</dt>
+        <dd class="col-7 mb-2">{{ article.language }}</dd>
+        <dt class="col-5 text-secondary">Category</dt>
+        <dd class="col-7 mb-2">{{ article.category|default:"—" }}</dd>
+        <dt class="col-5 text-secondary">Published</dt>
+        <dd class="col-7 mb-2">{{ article.published_at|default:"—" }}</dd>
+        <dt class="col-5 text-secondary">Imported</dt>
+        <dd class="col-7 mb-2">{{ article.created_at }}</dd>
+        <dt class="col-5 text-secondary">Importance</dt>
+        <dd class="col-7 mb-0">{{ article.importance_score|default:"—" }}</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-8">
+    {% if article.summary %}
+    <div class="card p-4 mb-4">
+      <h2 class="h6 text-secondary text-uppercase mb-3">Summary</h2>
+      <div class="article-body">{{ article.summary|linebreaksbr }}</div>
+    </div>
+    {% endif %}
+
+    <div class="card p-4">
+      <h2 class="h6 text-secondary text-uppercase mb-3">Content</h2>
+      {% if article.content %}
+      <div class="article-body">{{ article.content|linebreaksbr }}</div>
+      {% else %}
+      <div class="empty-state">No full content stored for this article.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

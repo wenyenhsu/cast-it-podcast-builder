@@ -189,7 +189,8 @@ docker compose exec web python manage.py changepassword <username>
 | Path | Purpose |
 |------|---------|
 | `/` | Overview dashboard |
-| `/providers/` | LLM and TTS provider health (tabbed) |
+| `/content/` | Unified article table (RSS + Manual) with script source checkboxes |
+| `/providers/` | LLM, TTS, and Information Resources (`?tab=sources&resource=rss\|manual`) |
 | `/monitor/` | Health, metrics, and logs (tabbed) |
 | `/pipeline/<episode-id>/` | Episode pipeline status |
 

@@ -6,8 +6,17 @@
 <div class="d-flex flex-column flex-md-row justify-content-between gap-3 align-items-md-center mb-4">
   <div>
     <h1 class="h3 mb-1">Providers</h1>
-    <p class="text-secondary mb-0">LLM and TTS backend health, configuration, and active models.</p>
+    <p class="text-secondary mb-0">
+      {% if tab == "sources" %}
+        Two information resource providers: RSS feeds and manual article entry.
+      {% elif tab == "tts" %}
+        Text-to-speech backend health, voice settings, and configuration.
+      {% else %}
+        Language model backend health, models, and configuration.
+      {% endif %}
+    </p>
   </div>
+  {% if tab == "llm" or tab == "tts" %}
   <form method="post" class="m-0">
     {% csrf_token %}
     <input type="hidden" name="tab" value="{{ tab }}">
@@ -15,11 +24,19 @@
       <i class="bi bi-arrow-repeat me-1"></i>Run Health Check
     </button>
   </form>
+  {% endif %}
 </div>
 
 {% if message %}
 <div class="alert alert-success alert-dismissible fade show" role="alert">
   {{ message }}
+  <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+{% endif %}
+
+{% if error %}
+<div class="alert alert-danger alert-dismissible fade show" role="alert">
+  {{ error }}
   <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
 </div>
 {% endif %}
@@ -35,9 +52,16 @@
       <i class="bi bi-mic me-1"></i>TTS
     </a>
   </li>
+  <li class="nav-item" role="presentation">
+    <a class="nav-link{% if tab == 'sources' %} active{% endif %}" href="?tab=sources&resource=rss" role="tab">
+      <i class="bi bi-journal-richtext me-1"></i>Information Resources
+    </a>
+  </li>
 </ul>
 
-{% if tab == "tts" %}
+{% if tab == "sources" %}
+  {% include "operations/partials/providers_sources.html" %}
+{% elif tab == "tts" %}
   {% include "operations/partials/providers_tts.html" %}
 {% else %}
   {% include "operations/partials/providers_llm.html" %}

@@ -16,6 +16,7 @@ class NewsSourceListSerializer(serializers.ModelSerializer):
             "provider_type",
             "language",
             "enabled",
+            "max_articles_per_import",
             "created_at",
             "updated_at",
         )
@@ -35,6 +36,7 @@ class NewsSourceDetailSerializer(serializers.ModelSerializer):
             "rss_url",
             "language",
             "enabled",
+            "max_articles_per_import",
             "created_at",
             "updated_at",
         )
@@ -53,6 +55,7 @@ class NewsSourceWriteSerializer(serializers.ModelSerializer):
             "rss_url",
             "language",
             "enabled",
+            "max_articles_per_import",
         )
 
 

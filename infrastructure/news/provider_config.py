@@ -13,4 +13,5 @@ class ProviderConfig:
     rss_url: str = ""
     homepage: str = ""
     api_key: str = ""
+    max_articles_per_import: int = 0
     extra: dict[str, str] | None = None

@@ -1,0 +1,164 @@
+<div class="row g-4 mb-4">
+  <div class="col-12 col-xl-5">
+    <div class="card p-4 h-100">
+      <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+        <div>
+          <h2 class="h5 mb-1">{% if edit_form %}Edit RSS Source{% else %}Add RSS Source{% endif %}</h2>
+          <p class="text-secondary small mb-0">Configure feed URL, import limit, and enabled status.</p>
+        </div>
+        <span class="insight-icon"><i class="bi bi-rss"></i></span>
+      </div>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="tab" value="sources">
+        <input type="hidden" name="resource" value="rss">
+        <input type="hidden" name="provider_action" value="{% if edit_form %}update_source{% else %}create_source{% endif %}">
+        {% if edit_form %}
+        <input type="hidden" name="source_id" value="{{ edit_form.id }}">
+        {% endif %}
+        <div class="mb-3">
+          <label class="form-label small text-secondary">Name</label>
+          <input type="text" name="name" class="form-control" required value="{{ form_defaults.name }}" placeholder="Tech News RSS">
+        </div>
+        <div class="mb-3">
+          <label class="form-label small text-secondary">RSS URL</label>
+          <input type="url" name="rss_url" class="form-control" required value="{{ form_defaults.rss_url }}" placeholder="https://example.com/feed.xml">
+        </div>
+        <div class="mb-3">
+          <label class="form-label small text-secondary">Language</label>
+          <input type="text" name="language" class="form-control" value="{{ form_defaults.language }}" placeholder="en">
+        </div>
+        <div class="mb-3">
+          <label class="form-label small text-secondary">Articles per import</label>
+          <input type="number" name="max_articles_per_import" class="form-control" min="0" max="100" value="{{ form_defaults.max_articles_per_import }}" required>
+          <div class="form-text">Daily scheduled import uses this limit (0 = no limit).</div>
+        </div>
+        <div class="form-check mb-4">
+          <input class="form-check-input" type="checkbox" name="enabled" id="sourceEnabled" {% if form_defaults.enabled %}checked{% endif %}>
+          <label class="form-check-label" for="sourceEnabled">Enabled</label>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+          <button type="submit" class="btn btn-primary">
+            {% if edit_form %}Save Changes{% else %}Add Source{% endif %}
+          </button>
+          {% if edit_form %}
+          <a class="btn btn-outline-secondary" href="?tab=sources&resource=rss">Cancel</a>
+          {% endif %}
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="col-12 col-xl-7">
+    <div class="card p-4 h-100">
+      <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+        <div>
+          <h2 class="h5 mb-1">Recent RSS Articles</h2>
+          <p class="text-secondary small mb-0">Latest articles imported from RSS feeds.</p>
+        </div>
+        <span class="insight-icon"><i class="bi bi-newspaper"></i></span>
+      </div>
+      {% if recent_articles %}
+      <div class="table-responsive">
+        <table class="ops-table">
+          <thead>
+            <tr><th>Title</th><th>Source</th><th>Imported</th></tr>
+          </thead>
+          <tbody>
+            {% for article in recent_articles %}
+            <tr>
+              <td>
+                <a href="{% url 'operations:article_detail' article.id %}" class="article-title-link">
+                  {{ article.title|truncatechars:60 }}
+                </a>
+              </td>
+              <td class="text-secondary">{{ article.source_name }}</td>
+              <td class="text-secondary text-nowrap">{{ article.created_at }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="empty-state">No RSS articles yet. Add a feed and run Import.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="card p-4">
+  <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+    <div>
+      <h2 class="h5 mb-1">RSS Sources</h2>
+      <p class="text-secondary small mb-0">Feeds used by the RSS information resource provider.</p>
+    </div>
+    <span class="insight-icon"><i class="bi bi-collection"></i></span>
+  </div>
+  <div class="table-responsive">
+    <table class="ops-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>RSS URL</th>
+          <th>Limit</th>
+          <th>Articles</th>
+          <th>Status</th>
+          <th class="text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for source in sources %}
+        <tr>
+          <td class="fw-semibold">{{ source.name }}</td>
+          <td class="text-secondary text-break" style="max-width: 14rem;">{{ source.rss_url }}</td>
+          <td>{% if source.max_articles_per_import %}{{ source.max_articles_per_import }}{% else %}∞{% endif %}</td>
+          <td>{{ source.article_count }}</td>
+          <td>
+            {% if source.enabled %}
+            <span class="badge text-bg-success">Enabled</span>
+            {% else %}
+            <span class="badge text-bg-secondary">Disabled</span>
+            {% endif %}
+          </td>
+          <td class="text-end">
+            <div class="d-inline-flex flex-wrap gap-1 justify-content-end">
+              <form method="post" class="d-inline">
+                {% csrf_token %}
+                <input type="hidden" name="tab" value="sources">
+                <input type="hidden" name="resource" value="rss">
+                <input type="hidden" name="provider_action" value="import_source">
+                <input type="hidden" name="source_id" value="{{ source.id }}">
+                <button type="submit" class="btn btn-sm btn-outline-primary">Import</button>
+              </form>
+              <a class="btn btn-sm btn-outline-secondary" href="?tab=sources&resource=rss&edit={{ source.id }}">Edit</a>
+              <form method="post" class="d-inline">
+                {% csrf_token %}
+                <input type="hidden" name="tab" value="sources">
+                <input type="hidden" name="resource" value="rss">
+                <input type="hidden" name="provider_action" value="toggle_enabled">
+                <input type="hidden" name="source_id" value="{{ source.id }}">
+                <input type="hidden" name="enabled" value="{% if source.enabled %}false{% else %}true{% endif %}">
+                <button type="submit" class="btn btn-sm btn-outline-secondary">
+                  {% if source.enabled %}Disable{% else %}Enable{% endif %}
+                </button>
+              </form>
+              <form method="post" class="d-inline" onsubmit="return confirm('Delete this RSS source?');">
+                {% csrf_token %}
+                <input type="hidden" name="tab" value="sources">
+                <input type="hidden" name="resource" value="rss">
+                <input type="hidden" name="provider_action" value="delete_source">
+                <input type="hidden" name="source_id" value="{{ source.id }}">
+                <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" class="empty-state">No RSS sources configured yet.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>

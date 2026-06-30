@@ -36,5 +36,6 @@ class ProviderFactory:
             language=source.language,
             rss_url=source.rss_url,
             homepage=source.homepage,
+            max_articles_per_import=source.max_articles_per_import,
         )
         return provider_class(config=config, validator=self._validator)
