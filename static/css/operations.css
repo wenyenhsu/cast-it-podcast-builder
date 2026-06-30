@@ -147,6 +147,65 @@ body {
   color: #64748b;
 }
 
+.detail-panel {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 1rem;
+  padding: 1rem;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.detail-row:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.detail-row span {
+  color: #64748b;
+}
+
+.skill-chip {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #d9e0e7;
+  border-radius: 0.5rem;
+  background: #f8fafc;
+  padding: 0.25rem 0.55rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.monitor-tabs {
+  border-bottom-color: #e2e8f0;
+}
+
+.monitor-tabs .nav-link {
+  color: #64748b;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  padding: 0.65rem 1rem;
+  font-weight: 500;
+}
+
+.monitor-tabs .nav-link:hover {
+  color: #0f172a;
+  border-bottom-color: #cbd5e1;
+}
+
+.monitor-tabs .nav-link.active {
+  color: #0d6efd;
+  background: transparent;
+  border-bottom-color: #0d6efd;
+}
+
 .table > :not(caption) > * > * {
   padding-top: 0.85rem;
   padding-bottom: 0.85rem;

@@ -1,0 +1,68 @@
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="card p-3 h-100">
+      <div class="stat-label text-secondary">Health</div>
+      <div class="h4 fw-bold mb-0 {% if llm.healthy %}text-success{% else %}text-danger{% endif %}">{{ llm.health }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card p-3 h-100">
+      <div class="stat-label text-secondary">Response Time</div>
+      <div class="h4 fw-bold mb-0">{{ llm.response_time_ms }}<small class="text-secondary fs-6"> ms</small></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card p-3 h-100">
+      <div class="stat-label text-secondary">Backend</div>
+      <div class="h4 fw-bold mb-0 text-capitalize">{{ llm.backend }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card p-3 h-100">
+      <div class="stat-label text-secondary">Last Check</div>
+      <div class="small fw-semibold mb-0">{{ llm.last_check }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-12 col-lg-6">
+    <div class="card p-4 h-100">
+      <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+        <div>
+          <h2 class="h5 mb-1">Configuration</h2>
+          <p class="text-secondary small mb-0">Active LLM settings from environment.</p>
+        </div>
+        <span class="insight-icon"><i class="bi bi-sliders"></i></span>
+      </div>
+      <div class="detail-panel">
+        <div class="detail-row"><span>Base URL</span><strong class="text-break">{{ llm.base_url }}</strong></div>
+        <div class="detail-row"><span>Chat Model</span><strong>{{ llm.chat_model|default:"—" }}</strong></div>
+        <div class="detail-row"><span>Embedding Model</span><strong>{{ llm.embedding_model|default:"—" }}</strong></div>
+        <div class="detail-row"><span>Temperature</span><strong>{{ llm.temperature }}</strong></div>
+        <div class="detail-row"><span>Timeout</span><strong>{{ llm.timeout }} s</strong></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-6">
+    <div class="card p-4 h-100">
+      <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+        <div>
+          <h2 class="h5 mb-1">Available Models</h2>
+          <p class="text-secondary small mb-0">Models reported by the LLM backend.</p>
+        </div>
+        <span class="insight-icon"><i class="bi bi-collection"></i></span>
+      </div>
+      {% if llm.available_models %}
+      <div class="d-flex flex-wrap gap-2">
+        {% for model in llm.available_models %}
+        <span class="skill-chip{% if model == llm.chat_model %} border-primary text-primary{% endif %}">{{ model }}</span>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty-state">No models returned from the backend.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>

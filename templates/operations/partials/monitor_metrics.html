@@ -1,17 +1,8 @@
-{% extends "operations/base.html" %}
-
-{% block title %}{{ title }} | Cast It{% endblock %}
-
-{% block content %}
-<div class="d-flex flex-column flex-md-row justify-content-between gap-3 align-items-md-center mb-4">
-  <div>
-    <h1 class="h3 mb-1">{{ title }}</h1>
-    <p class="text-secondary mb-0">Pipeline performance over the last {{ metrics.period_days }} days.</p>
-  </div>
+<div class="d-flex justify-content-end mb-3">
   <div class="btn-group" role="group" aria-label="Period selector">
-    <a class="btn btn-sm {% if days == 7 %}btn-primary{% else %}btn-outline-secondary{% endif %}" href="?days=7">7d</a>
-    <a class="btn btn-sm {% if days == 14 %}btn-primary{% else %}btn-outline-secondary{% endif %}" href="?days=14">14d</a>
-    <a class="btn btn-sm {% if days == 30 %}btn-primary{% else %}btn-outline-secondary{% endif %}" href="?days=30">30d</a>
+    <a class="btn btn-sm {% if days == 7 %}btn-primary{% else %}btn-outline-secondary{% endif %}" href="?tab=metrics&days=7">7d</a>
+    <a class="btn btn-sm {% if days == 14 %}btn-primary{% else %}btn-outline-secondary{% endif %}" href="?tab=metrics&days=14">14d</a>
+    <a class="btn btn-sm {% if days == 30 %}btn-primary{% else %}btn-outline-secondary{% endif %}" href="?tab=metrics&days=30">30d</a>
   </div>
 </div>
 
@@ -54,7 +45,7 @@
       <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
         <div>
           <h2 class="h5 mb-1">Articles Imported Per Day</h2>
-          <p class="text-secondary small mb-0">Daily ingestion volume.</p>
+          <p class="text-secondary small mb-0">Daily ingestion volume (last {{ metrics.period_days }} days).</p>
         </div>
         <span class="insight-icon"><i class="bi bi-newspaper"></i></span>
       </div>
@@ -80,7 +71,7 @@
       <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
         <div>
           <h2 class="h5 mb-1">Episodes Published Per Day</h2>
-          <p class="text-secondary small mb-0">Daily publish output.</p>
+          <p class="text-secondary small mb-0">Daily publish output (last {{ metrics.period_days }} days).</p>
         </div>
         <span class="insight-icon"><i class="bi bi-broadcast"></i></span>
       </div>
@@ -101,4 +92,3 @@
     </div>
   </div>
 </div>
-{% endblock %}

@@ -41,16 +41,64 @@ def test_operations_dashboard_renders(admin_client) -> None:
 
 
 @pytest.mark.django_db
-def test_operations_views_load(admin_client) -> None:
-    views = [
-        "operations:providers",
-        "operations:health",
-        "operations:metrics",
-        "operations:logs",
+def test_providers_page_renders(admin_client) -> None:
+    response = admin_client.get(reverse("operations:providers"))
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert "Providers" in content
+    assert "Configuration" in content
+
+
+@pytest.mark.django_db
+def test_provider_tabs_render(admin_client) -> None:
+    for tab, marker in (("llm", "Available Models"), ("tts", "Active Voice")):
+        response = admin_client.get(reverse("operations:providers"), {"tab": tab})
+        assert response.status_code == 200
+        content = response.content.decode()
+        assert marker in content
+
+
+@pytest.mark.django_db
+def test_legacy_provider_urls_redirect(admin_client) -> None:
+    cases = [
+        ("operations:llm", "tab=llm"),
+        ("operations:tts", "tab=tts"),
     ]
-    for view_name in views:
+    for view_name, fragment in cases:
         response = admin_client.get(reverse(view_name))
-        assert response.status_code == 200, view_name
+        assert response.status_code == 302, view_name
+        assert "/providers/" in response.url
+        assert fragment in response.url
+
+
+@pytest.mark.django_db
+def test_operations_monitor_loads(admin_client) -> None:
+    response = admin_client.get(reverse("operations:monitor"))
+    assert response.status_code == 200
+
+
+@pytest.mark.django_db
+def test_monitor_tabs_render(admin_client) -> None:
+    for tab in ("health", "metrics", "logs"):
+        response = admin_client.get(reverse("operations:monitor"), {"tab": tab})
+        assert response.status_code == 200
+        content = response.content.decode()
+        assert "Monitor" in content
+        assert tab.title() in content
+
+
+@pytest.mark.django_db
+def test_legacy_monitor_urls_redirect(admin_client) -> None:
+    cases = [
+        ("operations:health", "tab=health"),
+        ("operations:metrics", "tab=metrics"),
+        ("operations:logs", "tab=logs"),
+    ]
+    for view_name, fragment in cases:
+        response = admin_client.get(reverse(view_name))
+        assert response.status_code == 302, view_name
+        assert "/monitor/" in response.url
+        assert fragment in response.url
 
 
 @pytest.mark.django_db

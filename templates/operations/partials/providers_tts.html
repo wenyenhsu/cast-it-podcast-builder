@@ -1,0 +1,68 @@
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="card p-3 h-100">
+      <div class="stat-label text-secondary">Health</div>
+      <div class="h4 fw-bold mb-0 {% if tts.healthy %}text-success{% else %}text-danger{% endif %}">{{ tts.health }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card p-3 h-100">
+      <div class="stat-label text-secondary">Response Time</div>
+      <div class="h4 fw-bold mb-0">{{ tts.response_time_ms }}<small class="text-secondary fs-6"> ms</small></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card p-3 h-100">
+      <div class="stat-label text-secondary">Backend</div>
+      <div class="h4 fw-bold mb-0 text-capitalize">{{ tts.backend }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card p-3 h-100">
+      <div class="stat-label text-secondary">Last Check</div>
+      <div class="small fw-semibold mb-0">{{ tts.last_check }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-12 col-lg-6">
+    <div class="card p-4 h-100">
+      <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+        <div>
+          <h2 class="h5 mb-1">Configuration</h2>
+          <p class="text-secondary small mb-0">Active TTS settings from environment.</p>
+        </div>
+        <span class="insight-icon"><i class="bi bi-sliders"></i></span>
+      </div>
+      <div class="detail-panel">
+        <div class="detail-row"><span>Base URL</span><strong class="text-break">{{ tts.base_url }}</strong></div>
+        <div class="detail-row"><span>Default Voice</span><strong>{{ tts.default_voice|default:"—" }}</strong></div>
+        <div class="detail-row"><span>Audio Format</span><strong>{{ tts.audio_format }}</strong></div>
+        <div class="detail-row"><span>Timeout</span><strong>{{ tts.timeout }} s</strong></div>
+        <div class="detail-row"><span>Max Text Length</span><strong>{{ tts.max_text_length }}</strong></div>
+        <div class="detail-row"><span>Words Per Minute</span><strong>{{ tts.words_per_minute }}</strong></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-6">
+    <div class="card p-4 h-100">
+      <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+        <div>
+          <h2 class="h5 mb-1">Active Voice</h2>
+          <p class="text-secondary small mb-0">Voice profile used for episode audio generation.</p>
+        </div>
+        <span class="insight-icon"><i class="bi bi-mic-fill"></i></span>
+      </div>
+      {% if tts.active_model %}
+      <div class="detail-panel">
+        <div class="detail-row"><span>Voice ID</span><strong>{{ tts.active_model }}</strong></div>
+        <div class="detail-row"><span>Backend</span><strong class="text-capitalize">{{ tts.backend }}</strong></div>
+      </div>
+      {% else %}
+      <div class="empty-state">No default voice configured.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>

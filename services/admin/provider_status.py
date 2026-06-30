@@ -1,40 +1,26 @@
-"""Provider status aggregation for the admin provider dashboard."""
+"""Provider status aggregation for the operations provider dashboards."""
 
 import time
 from typing import Any
 
 from django.utils import timezone
 
-from apps.providers.models import ProviderHealthCheck
 from services.audio.provider_factory import TTSProviderFactory
 from services.audio.settings import TTSSettings
 from services.llm.provider_factory import LLMProviderFactory
 from services.llm.settings import LLMSettings
-from services.publish.settings import PublishSettings
 
 
 class ProviderDashboardService:
-    """Collects provider health and metadata for the admin dashboard."""
-
-    PROVIDERS = ("Ollama", "Chatterbox", "RSS", "Gmail", "YouTube")
+    """Collects LLM and TTS provider health for the operations dashboards."""
 
     def snapshot(self) -> list[dict[str, Any]]:
-        return [
-            self._ollama_status(),
-            self._chatterbox_status(),
-            self._rss_status(),
-            self._gmail_status(),
-            self._youtube_status(),
-        ]
+        return [self.llm_status(), self.tts_status()]
 
-    def run_health_checks(self) -> list[dict[str, Any]]:
-        return self.snapshot()
-
-    def _ollama_status(self) -> dict[str, Any]:
+    def llm_status(self) -> dict[str, Any]:
         settings = LLMSettings.from_django_settings()
         started = time.perf_counter()
         healthy = False
-        active_model = settings.chat_model or ""
         available_models: list[str] = []
         try:
             provider = LLMProviderFactory(settings).create()
@@ -47,17 +33,24 @@ class ProviderDashboardService:
         except Exception:
             healthy = False
         elapsed_ms = int((time.perf_counter() - started) * 1000)
-        return self._row(
-            name="Ollama",
-            provider_type="llm",
-            healthy=healthy,
-            response_time_ms=elapsed_ms,
-            version="",
-            active_model=active_model,
-            available_models=available_models,
-        )
+        return {
+            **self._row(
+                name="LLM",
+                backend=settings.provider,
+                provider_type="llm",
+                healthy=healthy,
+                response_time_ms=elapsed_ms,
+                active_model=settings.chat_model,
+                available_models=available_models,
+            ),
+            "base_url": settings.base_url,
+            "chat_model": settings.chat_model,
+            "embedding_model": settings.embedding_model,
+            "temperature": settings.temperature,
+            "timeout": settings.timeout,
+        }
 
-    def _chatterbox_status(self) -> dict[str, Any]:
+    def tts_status(self) -> dict[str, Any]:
         settings = TTSSettings.from_django_settings()
         started = time.perf_counter()
         healthy = False
@@ -67,87 +60,44 @@ class ProviderDashboardService:
         except Exception:
             healthy = False
         elapsed_ms = int((time.perf_counter() - started) * 1000)
-        return self._row(
-            name="Chatterbox",
-            provider_type="tts",
-            healthy=healthy,
-            response_time_ms=elapsed_ms,
-            version="",
-            active_model=settings.default_voice,
-            available_models=[],
-        )
-
-    def _rss_status(self) -> dict[str, Any]:
-        last = (
-            ProviderHealthCheck.objects.filter(provider_type="rss")
-            .order_by("-checked_at")
-            .first()
-        )
-        return self._row(
-            name="RSS",
-            provider_type="rss",
-            healthy=last.status == "healthy" if last else True,
-            response_time_ms=last.response_time_ms if last else None,
-            version="",
-            active_model="",
-            available_models=[],
-            last_check=last.checked_at if last else None,
-        )
-
-    def _gmail_status(self) -> dict[str, Any]:
-        return self._row(
-            name="Gmail",
-            provider_type="gmail",
-            healthy=False,
-            response_time_ms=None,
-            version="",
-            active_model="",
-            available_models=[],
-            note="Not configured",
-        )
-
-    def _youtube_status(self) -> dict[str, Any]:
-        settings = PublishSettings.from_django_settings()
-        healthy = settings.youtube_configured()
-        return self._row(
-            name="YouTube",
-            provider_type="youtube",
-            healthy=healthy,
-            response_time_ms=None,
-            version="",
-            active_model=settings.youtube_channel_id,
-            available_models=[],
-            note="Configured" if healthy else "Not configured",
-        )
+        return {
+            **self._row(
+                name="TTS",
+                backend=settings.provider,
+                provider_type="tts",
+                healthy=healthy,
+                response_time_ms=elapsed_ms,
+                active_model=settings.default_voice,
+                available_models=[],
+            ),
+            "base_url": settings.base_url,
+            "default_voice": settings.default_voice,
+            "audio_format": settings.audio_format,
+            "timeout": settings.timeout,
+            "max_text_length": settings.max_text_length,
+            "words_per_minute": settings.words_per_minute,
+        }
 
     def _row(
         self,
         *,
         name: str,
+        backend: str,
         provider_type: str,
         healthy: bool,
         response_time_ms: int | None,
-        version: str,
         active_model: str,
         available_models: list[str],
         last_check=None,
-        note: str = "",
     ) -> dict[str, Any]:
-        if healthy:
-            health = "Healthy"
-        elif note == "Not configured":
-            health = "Warning"
-        else:
-            health = "Error"
         return {
             "name": name,
+            "backend": backend,
             "provider_type": provider_type,
-            "health": health,
+            "health": "Healthy" if healthy else "Error",
             "healthy": healthy,
             "response_time_ms": response_time_ms,
             "last_check": last_check or timezone.now(),
-            "version": version,
             "active_model": active_model,
             "available_models": available_models,
-            "note": note,
         }

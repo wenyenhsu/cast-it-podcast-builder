@@ -1,7 +1,7 @@
 """Standalone operations dashboard views."""
 
 from django.http import HttpRequest, HttpResponse
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
 from apps.episodes.models import Episode
@@ -13,101 +13,125 @@ from services.admin.pipeline import EpisodePipelineService
 from services.admin.provider_status import ProviderDashboardService
 from services.admin.stats import DashboardStatsService
 
+_MONITOR_TABS = frozenset({"health", "metrics", "logs"})
+_PROVIDER_TABS = frozenset({"llm", "tts"})
+
 
 def _operations_links() -> list[dict[str, str]]:
     return [
         {
-            "label": "Provider Dashboard",
+            "label": "Providers",
             "url": reverse("operations:providers"),
             "icon": "bi-hdd-network",
         },
         {
-            "label": "Health Dashboard",
-            "url": reverse("operations:health"),
-            "icon": "bi-heart-pulse",
-        },
-        {
-            "label": "Metrics Dashboard",
-            "url": reverse("operations:metrics"),
-            "icon": "bi-graph-up",
-        },
-        {
-            "label": "Logs Viewer",
-            "url": reverse("operations:logs"),
-            "icon": "bi-journal-text",
+            "label": "Monitor",
+            "url": reverse("operations:monitor"),
+            "icon": "bi-activity",
         },
     ]
 
 
+def _monitor_context(request: HttpRequest) -> dict[str, object]:
+    tab = request.GET.get("tab", "health")
+    if tab not in _MONITOR_TABS:
+        tab = "health"
+
+    days = int(request.GET.get("days", "7"))
+    log_service = LogQueryService()
+
+    return {
+        "title": "Monitor",
+        "tab": tab,
+        "days": days,
+        "components": AdminHealthService().full_report(),
+        "metrics": MetricsService().summary(days=days),
+        "entries": log_service.search(
+            search=request.GET.get("q", ""),
+            severity=request.GET.get("severity", ""),
+            job_id=request.GET.get("job_id", ""),
+            episode_id=request.GET.get("episode_id", ""),
+            provider=request.GET.get("provider", ""),
+            limit=100,
+        ),
+        "filters": request.GET,
+    }
+
+
+def _providers_context(request: HttpRequest) -> dict[str, object]:
+    tab = request.GET.get("tab") or request.POST.get("tab", "llm")
+    if tab not in _PROVIDER_TABS:
+        tab = "llm"
+
+    service = ProviderDashboardService()
+    message = ""
+    if request.method == "POST":
+        if tab == "tts":
+            message = "TTS health check completed."
+        else:
+            message = "LLM health check completed."
+
+    return {
+        "title": "Providers",
+        "tab": tab,
+        "message": message,
+        "llm": service.llm_status(),
+        "tts": service.tts_status(),
+    }
+
+
 @staff_required
 def dashboard(request: HttpRequest) -> HttpResponse:
+    service = ProviderDashboardService()
     return render(
         request,
         "operations/dashboard.html",
         {
             **DashboardStatsService().overview(),
             "operations_links": _operations_links(),
+            "provider_snapshots": service.snapshot(),
         },
     )
 
 
 @staff_required
-def provider_dashboard(request: HttpRequest) -> HttpResponse:
-    service = ProviderDashboardService()
-    if request.method == "POST":
-        providers = service.run_health_checks()
-        message = "Provider health checks completed."
-    else:
-        providers = service.snapshot()
-        message = ""
-    return render(
-        request,
-        "operations/providers.html",
-        {"providers": providers, "title": "Provider Dashboard", "message": message},
-    )
+def providers(request: HttpRequest) -> HttpResponse:
+    return render(request, "operations/providers.html", _providers_context(request))
+
+
+@staff_required
+def llm_provider_dashboard(request: HttpRequest) -> HttpResponse:
+    return redirect(f"{reverse('operations:providers')}?tab=llm")
+
+
+@staff_required
+def tts_provider_dashboard(request: HttpRequest) -> HttpResponse:
+    return redirect(f"{reverse('operations:providers')}?tab=tts")
+
+
+@staff_required
+def monitor(request: HttpRequest) -> HttpResponse:
+    return render(request, "operations/monitor.html", _monitor_context(request))
 
 
 @staff_required
 def health_dashboard(request: HttpRequest) -> HttpResponse:
-    components = AdminHealthService().full_report()
-    return render(
-        request,
-        "operations/health.html",
-        {"components": components, "title": "Health Dashboard"},
-    )
+    return redirect(f"{reverse('operations:monitor')}?tab=health")
 
 
 @staff_required
 def metrics_dashboard(request: HttpRequest) -> HttpResponse:
-    days = int(request.GET.get("days", "7"))
-    metrics = MetricsService().summary(days=days)
-    return render(
-        request,
-        "operations/metrics.html",
-        {"metrics": metrics, "title": "Metrics Dashboard", "days": days},
-    )
+    days = request.GET.get("days", "7")
+    return redirect(f"{reverse('operations:monitor')}?tab=metrics&days={days}")
 
 
 @staff_required
 def logs_viewer(request: HttpRequest) -> HttpResponse:
-    service = LogQueryService()
-    entries = service.search(
-        search=request.GET.get("q", ""),
-        severity=request.GET.get("severity", ""),
-        job_id=request.GET.get("job_id", ""),
-        episode_id=request.GET.get("episode_id", ""),
-        provider=request.GET.get("provider", ""),
-        limit=100,
-    )
-    return render(
-        request,
-        "operations/logs.html",
-        {
-            "entries": entries,
-            "title": "Logs Viewer",
-            "filters": request.GET,
-        },
-    )
+    query = request.GET.urlencode()
+    base = f"{reverse('operations:monitor')}?tab=logs"
+    if query:
+        return redirect(f"{base}&{query}")
+    return redirect(base)
 
 
 @staff_required

@@ -1,17 +1,6 @@
-{% extends "operations/base.html" %}
-
-{% block title %}{{ title }} | Cast It{% endblock %}
-
-{% block content %}
-<div class="d-flex flex-column flex-md-row justify-content-between gap-3 align-items-md-center mb-4">
-  <div>
-    <h1 class="h3 mb-1">{{ title }}</h1>
-    <p class="text-secondary mb-0">Search operational events across jobs and episodes.</p>
-  </div>
-</div>
-
 <div class="card p-4 mb-4">
   <form method="get" class="row g-2 align-items-end">
+    <input type="hidden" name="tab" value="logs">
     <div class="col-12 col-md-3">
       <label class="form-label small text-secondary">Search</label>
       <input type="text" name="q" class="form-control" placeholder="Search" value="{{ filters.q }}">
@@ -86,4 +75,3 @@
     </table>
   </div>
 </div>
-{% endblock %}

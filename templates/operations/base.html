@@ -33,13 +33,7 @@
             <a class="nav-link{% if request.resolver_match.url_name == 'providers' %} active{% endif %}" href="{% url 'operations:providers' %}">Providers</a>
           </li>
           <li class="nav-item">
-            <a class="nav-link{% if request.resolver_match.url_name == 'health' %} active{% endif %}" href="{% url 'operations:health' %}">Health</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link{% if request.resolver_match.url_name == 'metrics' %} active{% endif %}" href="{% url 'operations:metrics' %}">Metrics</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link{% if request.resolver_match.url_name == 'logs' %} active{% endif %}" href="{% url 'operations:logs' %}">Logs</a>
+            <a class="nav-link{% if request.resolver_match.url_name == 'monitor' %} active{% endif %}" href="{% url 'operations:monitor' %}">Monitor</a>
           </li>
           <li class="nav-item">
             <a class="nav-link" href="/api/v1/docs/" target="_blank" rel="noopener">API Docs</a>

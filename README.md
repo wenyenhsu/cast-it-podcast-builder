@@ -189,11 +189,11 @@ docker compose exec web python manage.py changepassword <username>
 | Path | Purpose |
 |------|---------|
 | `/` | Overview dashboard |
-| `/providers/` | External provider health |
-| `/health/` | Infrastructure health |
-| `/metrics/` | Operational metrics |
-| `/logs/` | Log viewer |
+| `/providers/` | LLM and TTS provider health (tabbed) |
+| `/monitor/` | Health, metrics, and logs (tabbed) |
 | `/pipeline/<episode-id>/` | Episode pipeline status |
+
+Legacy paths `/health/`, `/metrics/`, and `/logs/` redirect to `/monitor/` with the matching tab.
 
 ### 5. Local development (without Docker for the app)
 
