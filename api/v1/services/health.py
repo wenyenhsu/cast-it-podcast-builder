@@ -6,6 +6,7 @@ from infrastructure.celery.health import CeleryHealthService
 from infrastructure.publish.providers.factory import PublisherFactory
 from services.audio.provider_factory import TTSProviderFactory
 from services.audio.settings import TTSSettings
+from services.knowledge.health import KnowledgeHealthService
 from services.llm.provider_factory import LLMProviderFactory
 from services.llm.settings import LLMSettings
 from services.publish.settings import PublishSettings
@@ -21,6 +22,7 @@ class ApiHealthService:
             "llm": self.llm(),
             "tts": self.tts(),
             "publish": self.publish(),
+            "knowledge": self.knowledge(),
         }
         healthy = all(
             check.get("healthy", False)
@@ -64,3 +66,6 @@ class ApiHealthService:
             "platforms": results,
             "enabled_platforms": list(settings.enabled_platforms()),
         }
+
+    def knowledge(self) -> dict[str, Any]:
+        return KnowledgeHealthService().check_all()

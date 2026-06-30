@@ -57,7 +57,15 @@ show_error_codes = true
 exclude = ["migrations/"]
 
 [[tool.mypy.overrides]]
-module = ["api.*", "django_filters.*", "services.admin.*"]
+module = ["apps.knowledge.*", "infrastructure.vector.*"]
+disable_error_code = ["misc"]
+
+[[tool.mypy.overrides]]
+module = ["pgvector.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["api.*", "django_filters.*", "services.admin.*", "services.knowledge.*"]
 disable_error_code = ["type-arg", "misc", "import-untyped", "no-untyped-def", "no-any-return", "assignment", "var-annotated", "union-attr"]
 
 [[tool.mypy.overrides]]

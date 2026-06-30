@@ -16,7 +16,7 @@ class NewsSourceAdmin(AdminActionMixin, admin.ModelAdmin):
         "name",
         "provider_type",
         "language",
-        "enabled_display",
+        "enabled",
         "last_successful_import",
         "last_failed_import",
         "created_at",
@@ -40,11 +40,6 @@ class NewsSourceAdmin(AdminActionMixin, admin.ModelAdmin):
         "health_check_selected",
     )
 
-    @admin.display(description="Enabled", boolean=True)
-    def enabled_display(self, obj: NewsSource) -> bool:
-        return obj.enabled
-
-    @admin.display(description="Last Successful Import")
     def last_successful_import(self, obj: NewsSource) -> str:
         job = self._last_import_job(obj, succeeded=True)
         return str(job.completed_at) if job and job.completed_at else "—"

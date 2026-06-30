@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     "apps.publish",
     "apps.scheduler",
     "apps.providers",
+    "apps.knowledge",
 ]
 
 MIDDLEWARE = [
@@ -223,6 +224,17 @@ LLM_TEMPERATURE = env.float("LLM_TEMPERATURE", default=0.7)
 LLM_TIMEOUT = env.float("LLM_TIMEOUT", default=60.0)
 LLM_RETRY_COUNT = env.int("LLM_RETRY_COUNT", default=3)
 LLM_MAX_PROMPT_CHARS = env.int("LLM_MAX_PROMPT_CHARS", default=100_000)
+
+# RAG / Knowledge Base
+RAG_TOP_K = env.int("RAG_TOP_K", default=10)
+RAG_SIMILARITY_THRESHOLD = env.float("RAG_SIMILARITY_THRESHOLD", default=0.7)
+RAG_MAX_CONTEXT_TOKENS = env.int("RAG_MAX_CONTEXT_TOKENS", default=4000)
+RAG_CHUNK_SIZE = env.int("RAG_CHUNK_SIZE", default=512)
+RAG_CHUNK_OVERLAP = env.int("RAG_CHUNK_OVERLAP", default=50)
+RAG_EMBEDDING_DIMENSIONS = env.int("RAG_EMBEDDING_DIMENSIONS", default=768)
+RAG_EMBEDDING_BATCH_SIZE = env.int("RAG_EMBEDDING_BATCH_SIZE", default=32)
+RAG_VECTOR_STORE = env("RAG_VECTOR_STORE", default="pgvector")
+RAG_EMBEDDING_RETRY_COUNT = env.int("RAG_EMBEDDING_RETRY_COUNT", default=3)
 
 # TTS (Chatterbox)
 TTS_PROVIDER = env("TTS_PROVIDER", default="chatterbox")
