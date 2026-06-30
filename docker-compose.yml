@@ -10,8 +10,9 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cast_it}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+    # No host port by default — services connect via the internal network.
+    # To expose Postgres on the host (e.g. for local pytest), use:
+    #   docker compose -f docker-compose.yml -f docker-compose.host-access.yml up -d db
     healthcheck:
       test:
         [
@@ -24,8 +25,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    ports:
-      - "${REDIS_PORT:-6379}:6379"
+    # No host port — avoids conflicts with a local Redis on 6379.
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -49,7 +49,10 @@ services:
       CELERY_RESULT_BACKEND: redis://redis:6379/0
       SKIP_WAIT_FOR_SERVICES: "false"
     ports:
-      - "${WEB_PORT:-8000}:8000"
+      # WEB_PORT=8000 for a fixed port; WEB_PORT=0 or unset = random host port
+      - target: 8000
+        published: ${WEB_PORT:-0}
+        protocol: tcp
     depends_on:
       db:
         condition: service_healthy

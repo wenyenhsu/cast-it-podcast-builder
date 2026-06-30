@@ -87,24 +87,27 @@ OLLAMA_EMBED_MODEL=nomic-embed-text
 # or: docker compose up --build -d
 ```
 
+After startup, `./scripts/start.sh` prints the URLs for your assigned host port.
+
 This starts:
 
-| Service | Port | Description |
-|---------|------|-------------|
-| `web` | 8000 | Django API server |
-| `db` | 5432 | PostgreSQL with pgvector |
-| `redis` | 6379 | Cache & Celery broker |
+| Service | Host port | Description |
+|---------|-----------|-------------|
+| `web` | dynamic (`WEB_PORT=0`) or fixed (`WEB_PORT=8000`) | Django API server |
+| `db` | internal only | PostgreSQL with pgvector |
+| `redis` | internal only | Cache & Celery broker |
 | `celery-worker` | — | Background job worker |
 | `celery-beat` | — | Scheduled task runner |
 
+> `db` and `redis` are not published to the host by default, avoiding port conflicts with local PostgreSQL/Redis. To expose them for host-side tools (e.g. pytest), use `docker-compose.host-access.yml` — see [Development Commands](#development-commands).
+
 Migrations run automatically on container start via `docker/entrypoint.sh`.
 
-Verify the stack:
+Verify the stack (replace `<port>` with the port printed by `start.sh`):
 
 ```bash
-curl http://localhost:8000/api/v1/health/live/
-curl http://localhost:8000/api/v1/health/ready/
-curl http://localhost:8000/api/v1/version/
+curl http://localhost:<port>/api/v1/health/live/
+curl http://localhost:<port>/api/v1/version/
 ```
 
 Stop the stack:
@@ -275,13 +278,12 @@ python manage.py validate_config --warn-only
 
 ### Running tests with pgvector
 
-Tests require PostgreSQL with the pgvector extension:
+Tests require PostgreSQL with the pgvector extension. Start only the database with a host port:
 
 ```bash
-docker compose up -d db
+docker compose -f docker-compose.yml -f docker-compose.host-access.yml up -d db
+export POSTGRES_PORT="$(docker compose port db 5432 | cut -d: -f2)"
 pytest
-# or with a custom port:
-POSTGRES_PORT=5435 pytest
 ```
 
 ---

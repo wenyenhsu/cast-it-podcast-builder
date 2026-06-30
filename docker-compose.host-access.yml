@@ -1,0 +1,18 @@
+# Optional override — expose database and Redis on the host for local tools (pytest, psql).
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.host-access.yml up -d db redis
+#
+# Host ports are ephemeral unless POSTGRES_HOST_PORT / REDIS_HOST_PORT are set.
+
+services:
+  db:
+    ports:
+      - target: 5432
+        published: ${POSTGRES_HOST_PORT:-0}
+        protocol: tcp
+
+  redis:
+    ports:
+      - target: 6379
+        published: ${REDIS_HOST_PORT:-0}
+        protocol: tcp
