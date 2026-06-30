@@ -607,7 +607,15 @@ def script_detail(request: HttpRequest, script_id: str) -> HttpResponse:
 
 @staff_required
 def tts_generation(request: HttpRequest) -> HttpResponse:
-    """Open the TTS studio for a ready script (optionally scoped to one episode)."""
+    """Open the TTS studio for a ready script (by script or episode)."""
+    script_id = request.GET.get("script", "").strip()
+    if script_id:
+        script = Script.objects.filter(pk=script_id).first()
+        if script is None:
+            messages.error(request, "Script not found.")
+            return redirect(f"{reverse('operations:content')}?view=scripts")
+        return redirect(reverse("operations:script_detail", args=[script.pk]))
+
     episode_id = request.GET.get("episode", "").strip()
     if episode_id:
         script = (

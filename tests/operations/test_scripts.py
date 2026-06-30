@@ -130,6 +130,36 @@ def test_content_shows_tts_generation_link_when_script_ready(admin_client) -> No
 
 
 @pytest.mark.django_db
+def test_tts_generation_for_script(admin_client) -> None:
+    episode = Episode.objects.create(title="Audio Episode", status=EpisodeStatus.DRAFT)
+    ready = Script.objects.create(
+        episode=episode,
+        version=1,
+        title="Ready Script",
+        status=ScriptStatus.READY,
+    )
+    failed = Script.objects.create(
+        episode=episode,
+        version=2,
+        title="Failed Script",
+        status=ScriptStatus.FAILED,
+    )
+    response = admin_client.get(
+        reverse("operations:tts_generation"),
+        {"script": str(failed.id)},
+    )
+    assert response.status_code == 302
+    assert response.url == reverse("operations:script_detail", args=[failed.pk])
+
+    response = admin_client.get(
+        reverse("operations:tts_generation"),
+        {"script": str(ready.id)},
+    )
+    assert response.status_code == 302
+    assert response.url == reverse("operations:script_detail", args=[ready.pk])
+
+
+@pytest.mark.django_db
 def test_tts_generation_for_episode(admin_client) -> None:
     episode = Episode.objects.create(title="Audio Episode", status=EpisodeStatus.DRAFT)
     script = Script.objects.create(

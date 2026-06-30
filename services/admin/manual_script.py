@@ -115,7 +115,7 @@ class ManualScriptService:
     ) -> Script:
         cleaned_title = title.strip()
         if not cleaned_title:
-            raise ManualScriptError("Script title is required.")
+            raise ManualScriptError("Episode name is required.")
 
         parsed_segments = parse_manual_script_lines(dialogue)
         episode = self.resolve_episode(episode_id)
