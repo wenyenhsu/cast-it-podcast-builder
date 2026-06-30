@@ -1,0 +1,46 @@
+{% extends "admin/index.html" %}
+{% load i18n static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'admin/css/operations.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="ops-dashboard">
+  <h2>Operations Overview</h2>
+  <div class="ops-stat-grid">
+    <div class="ops-stat-card"><strong>Total Articles</strong><span>{{ total_articles }}</span></div>
+    <div class="ops-stat-card"><strong>Imported Today</strong><span>{{ articles_imported_today }}</span></div>
+    <div class="ops-stat-card"><strong>Pending Jobs</strong><span>{{ pending_jobs }}</span></div>
+    <div class="ops-stat-card"><strong>Running Jobs</strong><span>{{ running_jobs }}</span></div>
+    <div class="ops-stat-card"><strong>Failed Jobs</strong><span>{{ failed_jobs }}</span></div>
+    <div class="ops-stat-card"><strong>Episodes Today</strong><span>{{ episodes_generated_today }}</span></div>
+    <div class="ops-stat-card"><strong>Waiting for Audio</strong><span>{{ episodes_waiting_for_audio }}</span></div>
+    <div class="ops-stat-card"><strong>Waiting to Publish</strong><span>{{ episodes_waiting_for_publishing }}</span></div>
+    <div class="ops-stat-card"><strong>Published Episodes</strong><span>{{ published_episodes }}</span></div>
+  </div>
+
+  <h3>Operations Pages</h3>
+  <ul class="ops-links">
+    {% for link in operations_links %}
+      <li><a href="{{ link.url }}">{{ link.label }}</a></li>
+    {% endfor %}
+  </ul>
+
+  <h3>Provider Health</h3>
+  <table class="ops-table">
+    <thead><tr><th>Provider</th><th>Status</th><th>Last Check</th></tr></thead>
+    <tbody>
+      {% for provider in provider_health %}
+      <tr>
+        <td>{{ provider.name }}</td>
+        <td>{{ provider.status|title }}</td>
+        <td>{{ provider.checked_at|default:"—" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{{ block.super }}
+{% endblock %}

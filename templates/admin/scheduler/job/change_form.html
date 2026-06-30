@@ -1,0 +1,16 @@
+{% extends "admin/change_form.html" %}
+{% load i18n %}
+
+{% block extrahead %}
+{{ block.super }}
+{% if original.status == "running" or original.status == "queued" or original.status == "retrying" %}
+<meta http-equiv="refresh" content="5">
+{% endif %}
+{% endblock %}
+
+{% block after_field_sets %}
+{{ block.super }}
+{% if original.status == "running" or original.status == "queued" or original.status == "retrying" %}
+<p class="help">Progress refreshes automatically every 5 seconds while the job is active.</p>
+{% endif %}
+{% endblock %}

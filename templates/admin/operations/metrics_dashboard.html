@@ -1,0 +1,37 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'admin/css/operations.css' %}">
+{% endblock %}
+
+{% block content %}
+<h1>{{ title }}</h1>
+<p>Period: last {{ metrics.period_days }} days</p>
+<ul>
+  <li>Average script generation: {{ metrics.average_script_generation_seconds|default:"—" }} s</li>
+  <li>Average audio generation: {{ metrics.average_audio_generation_seconds|default:"—" }} s</li>
+  <li>Average publish time: {{ metrics.average_publish_seconds|default:"—" }} s</li>
+  <li>Failure rate: {{ metrics.failure_rate_percent }}%</li>
+  <li>Retry rate: {{ metrics.retry_rate_percent }}%</li>
+</ul>
+<h3>Articles Imported Per Day</h3>
+<table class="ops-table">
+  <thead><tr><th>Date</th><th>Count</th></tr></thead>
+  <tbody>
+    {% for row in metrics.articles_imported_per_day %}
+    <tr><td>{{ row.date }}</td><td>{{ row.count }}</td></tr>
+    {% empty %}<tr><td colspan="2">No data</td></tr>{% endfor %}
+  </tbody>
+</table>
+<h3>Episodes Published Per Day</h3>
+<table class="ops-table">
+  <thead><tr><th>Date</th><th>Count</th></tr></thead>
+  <tbody>
+    {% for row in metrics.episodes_published_per_day %}
+    <tr><td>{{ row.date }}</td><td>{{ row.count }}</td></tr>
+    {% empty %}<tr><td colspan="2">No data</td></tr>{% endfor %}
+  </tbody>
+</table>
+{% endblock %}
