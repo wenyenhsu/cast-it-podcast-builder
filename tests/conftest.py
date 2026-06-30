@@ -1,12 +1,3 @@
 """Pytest configuration and shared fixtures."""
 
-import pytest
-from django.test import Client
-
-pytest_plugins = ["tests.services.publish.conftest"]
-
-
-@pytest.fixture
-def api_client() -> Client:
-    """Return a Django test client."""
-    return Client()
+pytest_plugins = ["tests.services.publish.conftest", "tests.api.conftest"]

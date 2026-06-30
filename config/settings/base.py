@@ -28,6 +28,8 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     # Third-party
     "rest_framework",
+    "django_filters",
+    "drf_spectacular",
     "django_celery_beat",
     # Local apps
     "apps.core",
@@ -164,8 +166,29 @@ REST_FRAMEWORK = {
     "DEFAULT_PARSER_CLASSES": [
         "rest_framework.parsers.JSONParser",
     ],
-    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "DEFAULT_PAGINATION_CLASS": "api.v1.pagination.StandardPagination",
     "PAGE_SIZE": 20,
+    "DEFAULT_FILTER_BACKENDS": [
+        "django_filters.rest_framework.DjangoFilterBackend",
+        "rest_framework.filters.SearchFilter",
+        "rest_framework.filters.OrderingFilter",
+    ],
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.AllowAny",
+    ],
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "EXCEPTION_HANDLER": "api.v1.exceptions.api_exception_handler",
+}
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Cast It Podcast Generator API",
+    "DESCRIPTION": (
+        "REST API for the AI Podcast Generator platform. "
+        "Long-running operations return 202 Accepted with a job reference."
+    ),
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "COMPONENT_SPLIT_REQUEST": True,
 }
 
 # Logging

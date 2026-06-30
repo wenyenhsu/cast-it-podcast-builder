@@ -1,17 +1,27 @@
-"""Tests for core application."""
+"""Legacy health smoke tests."""
+
+from unittest.mock import patch
 
 import pytest
-from django.test import Client
+from rest_framework.test import APIClient
+
+
+@pytest.fixture
+def api_client() -> APIClient:
+    return APIClient()
 
 
 @pytest.mark.django_db
 def test_django_setup() -> None:
-    """Verify Django test database is accessible."""
     assert True
 
 
-def test_health_check(api_client: Client) -> None:
-    """Verify the health check endpoint returns ok."""
-    response = api_client.get("/api/v1/health/")
+@pytest.mark.django_db
+def test_health_check(api_client: APIClient) -> None:
+    with patch(
+        "api.v1.services.health.ApiHealthService.overall",
+        return_value={"status": "ok", "checks": {}},
+    ):
+        response = api_client.get("/api/v1/health/")
     assert response.status_code == 200
-    assert response.json() == {"status": "ok"}
+    assert response.json()["status"] == "ok"

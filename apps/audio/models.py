@@ -126,3 +126,47 @@ class AudioAsset(DomainModel):
         if self.script_segment_id:
             return f"Segment audio — {self.episode.title}"
         return f"Episode audio — {self.episode.title}"
+
+
+class PipelineRunStatus(models.TextChoices):
+    PENDING = "pending", "Pending"
+    RUNNING = "running", "Running"
+    COMPLETED = "completed", "Completed"
+    FAILED = "failed", "Failed"
+
+
+class PipelineRun(DomainModel):
+    """Tracks an audio pipeline execution for an episode."""
+
+    episode = models.ForeignKey(
+        "episodes.Episode",
+        on_delete=models.CASCADE,
+        related_name="pipeline_runs",
+    )
+    audio_asset = models.ForeignKey(
+        AudioAsset,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="pipeline_runs",
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=PipelineRunStatus.choices,
+        default=PipelineRunStatus.PENDING,
+        db_index=True,
+    )
+    started_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    output_path = models.CharField(max_length=500, blank=True)
+    error_message = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["episode", "status"]),
+            models.Index(fields=["status", "created_at"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"Pipeline run for {self.episode.title} ({self.status})"
