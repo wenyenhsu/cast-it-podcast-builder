@@ -1,27 +1,49 @@
 """Standalone operations dashboard views."""
 
+import logging
+
 from django.contrib import messages
-from django.http import HttpRequest, HttpResponse
+from django.http import FileResponse, Http404, HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
 from apps.articles.models import Article
+from apps.audio.models import AudioAsset, AudioAssetStatus
 from apps.episodes.models import Episode
+from apps.scheduler.models import Job, JobStatus
 from apps.operations.decorators import staff_required
 from apps.providers.models import ProviderType
-from services.admin.content_library import ContentLibraryService
+from apps.scripts.models import Script, ScriptStatus
+from services.admin.content_library import ContentLibraryError, ContentLibraryService
 from services.admin.health import AdminHealthService
 from services.admin.log_query import LogQueryService
 from services.admin.metrics import MetricsService
 from services.admin.news_sources import NewsSourceDashboardService, NewsSourceFormError
 from services.admin.pipeline import EpisodePipelineService
 from services.admin.provider_status import ProviderDashboardService
+from services.admin.dispatch import AdminJobDispatchService
+from services.admin.job_progress import JobProgressService
+from services.admin.manual_script import ManualScriptError, ManualScriptService
+from services.admin.scripts_dashboard import ScriptDashboardService
 from services.admin.stats import DashboardStatsService
+from services.audio.utils.paths import resolve_media_path
+
+logger = logging.getLogger(__name__)
 
 _MONITOR_TABS = frozenset({"health", "metrics", "logs"})
 _PROVIDER_TABS = frozenset({"llm", "tts", "sources"})
 _RESOURCE_TABS = frozenset({"rss", "manual"})
 _CONTENT_FILTER_TABS = frozenset({"all", "rss", "manual"})
+_CONTENT_VIEWS = frozenset(
+    {
+        "articles",
+        "scripts",
+        "failed-jobs",
+        "episodes-today",
+        "waiting-for-audio",
+        "fail-log",
+    }
+)
 
 
 def _content_filter(request: HttpRequest) -> str:
@@ -31,10 +53,42 @@ def _content_filter(request: HttpRequest) -> str:
     return value
 
 
-def _content_redirect(content_filter: str = "all") -> str:
+def _content_view(request: HttpRequest) -> str:
+    value = request.GET.get("view", "articles")
+    if value not in _CONTENT_VIEWS:
+        return "articles"
+    return value
+
+
+def _content_redirect(
+    content_filter: str = "all",
+    *,
+    job_id: str = "",
+    aborted_job_id: str = "",
+    content_view: str = "",
+    episode_id: str = "",
+) -> str:
     if content_filter == "all":
-        return reverse("operations:content")
-    return f"{reverse('operations:content')}?type={content_filter}"
+        base = reverse("operations:content")
+    else:
+        base = f"{reverse('operations:content')}?type={content_filter}"
+    params: list[str] = []
+    if content_view and content_view != "articles":
+        params.append(f"view={content_view}")
+    if episode_id:
+        params.append(f"episode={episode_id}")
+    if job_id:
+        params.append(f"job={job_id}")
+    if aborted_job_id:
+        params.append(f"aborted_job={aborted_job_id}")
+    if not params:
+        return base
+    separator = "&" if "?" in base else "?"
+    return f"{base}{separator}{'&'.join(params)}"
+
+
+def _scripts_tab_url(*, episode_id: str = "") -> str:
+    return _content_redirect(content_view="scripts", episode_id=episode_id)
 
 
 def _resource_tab(request: HttpRequest) -> str:
@@ -228,15 +282,64 @@ def _handle_sources_post(request: HttpRequest) -> dict[str, str]:
 def _content_context(request: HttpRequest) -> dict[str, object]:
     service = ContentLibraryService()
     content_filter = _content_filter(request)
+    content_view = _content_view(request)
     provider_type = None
     if content_filter == "rss":
         provider_type = ProviderType.RSS
     elif content_filter == "manual":
         provider_type = ProviderType.MANUAL
-    return {
+
+    stats = DashboardStatsService()
+    overview = stats.overview()
+    context: dict[str, object] = {
         "content_filter": content_filter,
+        "content_view": content_view,
+        "pipeline_stats": {
+            "failed_jobs": overview["failed_jobs"],
+            "episodes_today": overview["episodes_generated_today"],
+            "waiting_for_audio": overview["episodes_waiting_for_audio"],
+            "scripts_total": overview["scripts_total"],
+        },
         "articles": service.list_articles(provider_type=provider_type),
         "article_totals": service.article_totals(),
+        "script_workspace": service.script_workspace(),
+    }
+
+    if content_view == "failed-jobs":
+        context["failed_jobs"] = stats.list_failed_jobs()
+    elif content_view == "episodes-today":
+        context["episodes_today"] = stats.list_episodes_today()
+    elif content_view == "waiting-for-audio":
+        context["episodes_waiting_for_audio"] = stats.list_episodes_waiting_for_audio()
+    elif content_view == "fail-log":
+        log_service = LogQueryService()
+        context["fail_log_entries"] = log_service.search(
+            search=request.GET.get("q", ""),
+            severity=request.GET.get("severity", ""),
+            job_id=request.GET.get("job_id", ""),
+            episode_id=request.GET.get("episode_id", ""),
+            provider=request.GET.get("provider", ""),
+            limit=100,
+        )
+        context["fail_log_filters"] = request.GET
+    elif content_view == "scripts":
+        context.update(_scripts_tab_context(request))
+
+    return context
+
+
+def _scripts_tab_context(request: HttpRequest) -> dict[str, object]:
+    episode_id = request.GET.get("episode", "") or request.POST.get("episode_id", "")
+    episode = Episode.objects.filter(pk=episode_id).first() if episode_id else None
+    manual_service = ManualScriptService()
+    form_defaults = manual_service.form_defaults()
+    if request.method == "POST" and request.POST.get("script_action"):
+        form_defaults = manual_service.form_defaults(dict(request.POST.items()))
+    return {
+        "scripts_episode_id": episode_id,
+        "scripts_episode": episode,
+        "scripts": ScriptDashboardService().list_scripts(episode_id=episode_id),
+        "manual_form_defaults": form_defaults,
     }
 
 
@@ -245,20 +348,58 @@ def _handle_content_post(request: HttpRequest) -> dict[str, str]:
     content_filter = _content_filter(request)
     service = ContentLibraryService()
 
-    if action != "save_script_sources":
-        return {"error": "Unknown action.", "type": content_filter}
+    try:
+        if action == "save_script_sources":
+            selected_ids = set(request.POST.getlist("script_source_ids"))
+            scope_ids = set(request.POST.getlist("article_scope_ids"))
+            updated = service.update_script_selection(
+                selected_ids=selected_ids,
+                scope_ids=scope_ids,
+            )
+            episode_id = service.sync_selected_articles_to_draft_episode()
+            message = f"Saved script sources ({updated} updated)."
+            if episode_id:
+                message += f" Draft episode {episode_id} updated."
+            return {"message": message, "type": content_filter}
 
-    selected_ids = set(request.POST.getlist("script_source_ids"))
-    scope_ids = set(request.POST.getlist("article_scope_ids"))
-    updated = service.update_script_selection(
-        selected_ids=selected_ids,
-        scope_ids=scope_ids,
-    )
-    episode_id = service.sync_selected_articles_to_draft_episode()
-    message = f"Saved script sources ({updated} updated)."
-    if episode_id:
-        message += f" Draft episode {episode_id} updated."
-    return {"message": message, "type": content_filter}
+        if action == "generate_script":
+            episode_id, job_id = service.queue_script_generation(
+                episode_title=request.POST.get("episode_title", ""),
+            )
+            return {
+                "message": (
+                    f'Script generation queued for "{request.POST.get("episode_title", "").strip()}" '
+                    f"(job {job_id})."
+                ),
+                "type": content_filter,
+                "job_id": job_id,
+            }
+
+        if action == "abort_script":
+            aborted_job_id = service.abort_script_generation()
+            return {
+                "message": f"Script generation aborted (job {aborted_job_id}).",
+                "type": content_filter,
+                "aborted_job_id": aborted_job_id,
+            }
+
+        if action == "delete_episode":
+            episode_id = request.POST.get("episode_id", "")
+            title = service.delete_episode(episode_id)
+            return {
+                "message": f'Episode "{title}" deleted.',
+                "type": content_filter,
+                "content_view": request.POST.get("content_view", "episodes-today"),
+            }
+    except ContentLibraryError as exc:
+        return {"error": exc.message, "type": content_filter}
+    except Exception:
+        return {
+            "error": "Could not complete that action. Check LLM health and try again.",
+            "type": content_filter,
+        }
+
+    return {"error": "Unknown action.", "type": content_filter}
 
 
 def _providers_context(request: HttpRequest) -> dict[str, object]:
@@ -311,6 +452,24 @@ def _providers_context(request: HttpRequest) -> dict[str, object]:
 @staff_required
 def content(request: HttpRequest) -> HttpResponse:
     if request.method == "POST":
+        if request.POST.get("script_action"):
+            result = _handle_scripts_post(request)
+            if result.get("error"):
+                context = {
+                    "title": "Content",
+                    **_content_context(request),
+                    "content_view": "scripts",
+                    **_scripts_tab_context(request),
+                    "error": result["error"],
+                }
+                return render(request, "operations/content.html", context)
+            messages.success(request, result.get("message", "Saved."))
+            script_id = result.get("script_id")
+            if script_id:
+                return redirect(reverse("operations:script_detail", args=[script_id]))
+            episode_id = request.POST.get("episode_id", "")
+            return redirect(_scripts_tab_url(episode_id=episode_id))
+
         result = _handle_content_post(request)
         if result.get("error"):
             context = {
@@ -320,7 +479,14 @@ def content(request: HttpRequest) -> HttpResponse:
             }
             return render(request, "operations/content.html", context)
         messages.success(request, result.get("message", "Saved."))
-        return redirect(_content_redirect(str(result.get("type", "all"))))
+        return redirect(
+            _content_redirect(
+                str(result.get("type", "all")),
+                job_id=str(result.get("job_id", "")),
+                aborted_job_id=str(result.get("aborted_job_id", "")),
+                content_view=str(result.get("content_view", "")),
+            )
+        )
 
     return render(
         request,
@@ -330,6 +496,168 @@ def content(request: HttpRequest) -> HttpResponse:
             **_content_context(request),
         },
     )
+
+
+def _scripts_list_url(*, episode_id: str = "") -> str:
+    return _scripts_tab_url(episode_id=episode_id)
+
+
+def _handle_scripts_post(request: HttpRequest) -> dict[str, str]:
+    action = request.POST.get("script_action", "")
+    episode_id = request.GET.get("episode", "") or request.POST.get("episode_id", "")
+
+    if action != "create_manual_script":
+        return {"error": "Unknown action."}
+
+    try:
+        script = ManualScriptService().create(
+            title=request.POST.get("script_title", ""),
+            dialogue=request.POST.get("script_dialogue", ""),
+            episode_id=episode_id or None,
+        )
+        return {
+            "message": (
+                f'Manual script "{script.title}" created (v{script.version}). '
+                "Open it to generate TTS audio."
+            ),
+            "script_id": str(script.id),
+        }
+    except ManualScriptError as exc:
+        return {"error": exc.message}
+    except Exception:
+        return {"error": "Could not save manual script. Check your input and try again."}
+
+
+@staff_required
+def scripts(request: HttpRequest) -> HttpResponse:
+    episode_id = request.GET.get("episode", "") or request.POST.get("episode_id", "")
+    if request.method == "POST":
+        result = _handle_scripts_post(request)
+        if result.get("error"):
+            messages.error(request, result["error"])
+            return redirect(_scripts_tab_url(episode_id=episode_id))
+        messages.success(request, result.get("message", "Saved."))
+        script_id = result.get("script_id")
+        if script_id:
+            return redirect(reverse("operations:script_detail", args=[script_id]))
+        return redirect(_scripts_tab_url(episode_id=episode_id))
+    return redirect(_scripts_tab_url(episode_id=episode_id))
+
+
+@staff_required
+def script_detail(request: HttpRequest, script_id: str) -> HttpResponse:
+    service = ScriptDashboardService()
+    script = service.get_script_detail(script_id)
+    if script is None:
+        get_object_or_404(Script, pk=script_id)
+
+    if request.method == "POST":
+        action = request.POST.get("script_action", "")
+        if action == "generate_audio":
+            if script["status"] not in {"ready", "approved"}:
+                messages.error(
+                    request,
+                    "Script must be ready before generating TTS audio.",
+                )
+            else:
+                try:
+                    job = AdminJobDispatchService().generate_audio(
+                        script["episode_id"],
+                        script_id=str(script_id),
+                    )
+                    messages.success(
+                        request,
+                        f"TTS audio generation queued (job {job.id}).",
+                    )
+                    return redirect(
+                        f"{reverse('operations:script_detail', args=[script_id])}?job={job.id}"
+                    )
+                except Exception as exc:
+                    logger.exception(
+                        "Failed to queue TTS audio generation",
+                        extra={
+                            "event": "generate_audio_queue_failed",
+                            "script_id": str(script_id),
+                        },
+                    )
+                    messages.error(
+                        request,
+                        f"Could not queue audio generation: {exc}",
+                    )
+        else:
+            messages.error(request, "Unknown action.")
+        return redirect(reverse("operations:script_detail", args=[script_id]))
+
+    return render(
+        request,
+        "operations/script_detail.html",
+        {
+            "script": script,
+            "title": script["title"],
+            "back_url": _scripts_list_url(episode_id=script["episode_id"]),
+            "content_url": reverse("operations:content"),
+            "pipeline_url": reverse(
+                "operations:episode_pipeline",
+                args=[script["episode_id"]],
+            ),
+            "can_generate_audio": script["status"] in {"ready", "approved"},
+        },
+    )
+
+
+@staff_required
+def tts_generation(request: HttpRequest) -> HttpResponse:
+    """Open the TTS studio for a ready script (optionally scoped to one episode)."""
+    episode_id = request.GET.get("episode", "").strip()
+    if episode_id:
+        script = (
+            Script.objects.filter(
+                episode_id=episode_id,
+                status__in=[ScriptStatus.READY, ScriptStatus.APPROVED],
+            )
+            .order_by("-version")
+            .first()
+        )
+        if script is not None:
+            return redirect(reverse("operations:script_detail", args=[script.pk]))
+        messages.error(
+            request,
+            "No ready script for this episode yet. Generate or add a manual script first.",
+        )
+        return redirect(f"{reverse('operations:content')}?view=waiting-for-audio")
+
+    workspace = ContentLibraryService().script_workspace()
+    script_id = workspace.get("latest_ready_script_id", "")
+    if script_id:
+        return redirect(reverse("operations:script_detail", args=[script_id]))
+    messages.error(
+        request,
+        "No ready script for TTS yet. Generate or add a manual script first.",
+    )
+    return redirect(reverse("operations:content"))
+
+
+@staff_required
+def audio_asset(request: HttpRequest, asset_id: str) -> FileResponse:
+    """Stream a generated segment audio file for in-browser playback."""
+    asset = get_object_or_404(
+        AudioAsset.objects.filter(status=AudioAssetStatus.READY),
+        pk=asset_id,
+    )
+    path = resolve_media_path(asset.file_path)
+    if not path.is_file():
+        raise Http404("Audio file not found on disk.")
+
+    content_type = f"audio/{asset.format}" if asset.format else "audio/wav"
+    return FileResponse(path.open("rb"), content_type=content_type)
+
+
+@staff_required
+def job_status_api(request: HttpRequest, job_id: str) -> JsonResponse:
+    """JSON job status for operations progress polling."""
+    del request
+    job = get_object_or_404(Job, pk=job_id)
+    return JsonResponse(JobProgressService().serialize_job(job))
 
 
 @staff_required
@@ -344,6 +672,18 @@ def dashboard(request: HttpRequest) -> HttpResponse:
             "provider_snapshots": service.snapshot(),
         },
     )
+
+
+@staff_required
+def dashboard_insights(request: HttpRequest) -> HttpResponse:
+    tab = request.GET.get("tab", "failed-jobs")
+    view_map = {
+        "failed-jobs": "failed-jobs",
+        "episodes-today": "episodes-today",
+        "waiting-for-audio": "waiting-for-audio",
+    }
+    view = view_map.get(tab, "failed-jobs")
+    return redirect(f"{reverse('operations:content')}?view={view}")
 
 
 @staff_required
@@ -416,13 +756,23 @@ def article_detail(request: HttpRequest, article_id: str) -> HttpResponse:
 @staff_required
 def episode_pipeline(request: HttpRequest, episode_id: str) -> HttpResponse:
     episode = get_object_or_404(Episode, pk=episode_id)
-    stages = EpisodePipelineService().as_dicts(episode)
+    panel = EpisodePipelineService().build_panel(episode)
+    stages = panel["stages"]
+    script_stage = next((stage for stage in stages if stage["name"] == "Script"), None)
+    pipeline_notice = ""
+    if script_stage and script_stage["status"] in {"queued", JobStatus.QUEUED}:
+        pipeline_notice = (
+            "Script job is queued. If it stays here, ensure celery-worker is running "
+            "and listening to the llm queue, then retry from Content → Generate Script."
+        )
     return render(
         request,
         "operations/episode_pipeline.html",
         {
             "episode": episode,
             "stages": stages,
+            "overview": panel["overview"],
             "title": f"Pipeline — {episode.title}",
+            "pipeline_notice": pipeline_notice,
         },
     )

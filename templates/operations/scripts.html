@@ -1,0 +1,122 @@
+{% extends "operations/base.html" %}
+
+{% block title %}Scripts | Cast It{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between gap-3 align-items-md-center mb-4">
+  <div>
+    <h1 class="h3 mb-1">Scripts</h1>
+    <p class="text-secondary mb-0">
+      {% if episode %}
+      Generated scripts for <strong>{{ episode.title }}</strong>
+      {% else %}
+      LLM-generated and manual scripts — ready to feed TTS.
+      {% endif %}
+    </p>
+  </div>
+  <div class="d-flex flex-wrap gap-2">
+    <a class="btn btn-outline-secondary btn-sm" href="{{ back_url }}">
+      <i class="bi bi-arrow-left me-1"></i>Back to Content
+    </a>
+    {% if episode_id %}
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'operations:scripts' %}">
+      Show All Scripts
+    </a>
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'operations:episode_pipeline' episode_id %}">
+      <i class="bi bi-diagram-3 me-1"></i>Pipeline
+    </a>
+    {% endif %}
+  </div>
+</div>
+
+{% if error %}
+<div class="alert alert-danger">{{ error }}</div>
+{% endif %}
+
+<div class="card p-4 mb-4">
+  <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+    <div>
+      <h2 class="h5 mb-1">Add Manual Script</h2>
+      <p class="text-secondary small mb-0">
+        Paste dialogue directly for TTS — no LLM required. One segment per line:
+        <code>speaker: text</code> or <code>[speaker] text</code>.
+      </p>
+    </div>
+    <span class="insight-icon"><i class="bi bi-mic"></i></span>
+  </div>
+  <form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="script_action" value="create_manual_script">
+    {% if episode_id %}
+    <input type="hidden" name="episode_id" value="{{ episode_id }}">
+    {% endif %}
+    <div class="row g-3">
+      <div class="col-12 col-md-6">
+        <label class="form-label small text-secondary">Title</label>
+        <input type="text" name="script_title" class="form-control" required value="{{ manual_form_defaults.title }}" placeholder="Episode script title">
+      </div>
+      <div class="col-12">
+        <label class="form-label small text-secondary">Dialogue</label>
+        <textarea name="script_dialogue" class="form-control font-monospace" rows="10" required placeholder="intro: Welcome to Cast It.&#10;expert: Here is today's briefing.&#10;beginner: Can you explain that simply?&#10;outro: Thanks for listening.">{{ manual_form_defaults.dialogue }}</textarea>
+        <div class="form-text">
+          Speakers: intro, outro, expert, beginner, narration. Lines starting with <code>#</code> are ignored.
+        </div>
+      </div>
+      <div class="col-12">
+        <button type="submit" class="btn btn-primary">Save Manual Script</button>
+      </div>
+    </div>
+  </form>
+</div>
+
+<div class="card p-4">
+  {% if scripts %}
+  <div class="table-responsive">
+    <table class="ops-table">
+      <thead>
+        <tr>
+          <th>Episode</th>
+          <th>Version</th>
+          <th>Title</th>
+          <th>Status</th>
+          <th>Segments</th>
+          <th>Generated</th>
+          <th class="text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for script in scripts %}
+        <tr>
+          <td class="text-secondary">{{ script.episode_title|truncatechars:32 }}</td>
+          <td>v{{ script.version }}</td>
+          <td>
+            <a href="{% url 'operations:script_detail' script.id %}" class="article-title-link">
+              {{ script.title|truncatechars:48 }}
+            </a>
+          </td>
+          <td>
+            <span class="badge {% if script.status == 'ready' or script.status == 'approved' %}text-bg-success{% elif script.status == 'failed' %}text-bg-danger{% elif script.status == 'generating' %}text-bg-primary{% else %}text-bg-light border text-secondary{% endif %}">
+              {{ script.status }}
+            </span>
+          </td>
+          <td>{{ script.segment_count }}</td>
+          <td class="text-secondary text-nowrap">{{ script.generated_at|default:script.created_at }}</td>
+          <td class="text-end">
+            <a class="btn btn-sm btn-outline-primary" href="{% url 'operations:script_detail' script.id %}">Open</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+  {% if episode %}
+    No scripts for this episode yet. Go back to Content and run Generate Script.
+  {% else %}
+    No scripts yet. Select articles in Content and run Generate Script.
+  {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -74,7 +74,9 @@ class JobService:
         """Mark a job as queued with its Celery task id."""
         job.status = JobStatus.QUEUED
         job.celery_task_id = celery_task_id
-        job.save(update_fields=["status", "celery_task_id", "updated_at"])
+        if job.progress < 2:
+            job.progress = 2
+        job.save(update_fields=["status", "celery_task_id", "progress", "updated_at"])
         logger.info(
             "Job queued",
             extra={
@@ -91,7 +93,9 @@ class JobService:
         job.status = JobStatus.RUNNING
         if job.started_at is None:
             job.started_at = timezone.now()
-        job.save(update_fields=["status", "started_at", "updated_at"])
+        if job.progress < 5:
+            job.progress = 5
+        job.save(update_fields=["status", "started_at", "progress", "updated_at"])
         logger.info(
             "Job started",
             extra={

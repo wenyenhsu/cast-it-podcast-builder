@@ -1,0 +1,153 @@
+{% extends "operations/base.html" %}
+
+{% block title %}{{ title }} | Cast It{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between gap-3 align-items-md-center mb-4">
+  <div>
+    <h1 class="h3 mb-1">{{ script.title }}</h1>
+    <p class="text-secondary mb-0">
+      {{ script.episode_title }}
+      <span class="badge text-bg-light border ms-1">v{{ script.version }}</span>
+      <span class="badge {% if script.status == 'ready' or script.status == 'approved' %}text-bg-success{% elif script.status == 'failed' %}text-bg-danger{% elif script.status == 'generating' %}text-bg-primary{% else %}text-bg-light border text-secondary{% endif %} ms-1">
+        {{ script.status }}
+      </span>
+      <span class="badge text-bg-light border text-secondary ms-1">{{ script.validation_status }}</span>
+      {% if script.has_generated_audio %}
+      <span class="badge text-bg-success ms-1">
+        {{ script.ready_audio_count }}/{{ script.segments|length }} audio
+      </span>
+      {% endif %}
+    </p>
+  </div>
+  <div class="d-flex flex-wrap gap-2">
+    <a class="btn btn-outline-secondary btn-sm" href="{{ back_url }}">
+      <i class="bi bi-arrow-left me-1"></i>Back to Scripts
+    </a>
+    <a class="btn btn-outline-secondary btn-sm" href="{{ content_url }}">
+      <i class="bi bi-journal-text me-1"></i>Content
+    </a>
+    <a class="btn btn-outline-secondary btn-sm" href="{{ pipeline_url }}">
+      <i class="bi bi-diagram-3 me-1"></i>Pipeline
+    </a>
+    {% if can_generate_audio %}
+    <form method="post" class="d-inline">
+      {% csrf_token %}
+      <input type="hidden" name="script_action" value="generate_audio">
+      <button type="submit" class="btn btn-primary btn-sm">
+        <i class="bi bi-soundwave me-1"></i>Generate TTS Audio
+      </button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+<div class="row g-4 mb-4">
+  <div class="col-12 col-lg-4">
+    <div class="card p-4 h-100">
+      <h2 class="h6 text-secondary text-uppercase mb-3">Metadata</h2>
+      <dl class="row mb-0 small">
+        <dt class="col-5 text-secondary">LLM Provider</dt>
+        <dd class="col-7 mb-2">{{ script.llm_provider|default:"—" }}</dd>
+        <dt class="col-5 text-secondary">Model</dt>
+        <dd class="col-7 mb-2">{{ script.model_name|default:"—" }}</dd>
+        <dt class="col-5 text-secondary">Prompt</dt>
+        <dd class="col-7 mb-2">{{ script.prompt_version|default:"—" }}</dd>
+        <dt class="col-5 text-secondary">Segments</dt>
+        <dd class="col-7 mb-2">{{ script.segments|length }}</dd>
+        <dt class="col-5 text-secondary">Audio Ready</dt>
+        <dd class="col-7 mb-2">{{ script.ready_audio_count }} / {{ script.segments|length }}</dd>
+        <dt class="col-5 text-secondary">Duration</dt>
+        <dd class="col-7 mb-2">
+          {% if script.estimated_duration_seconds %}{{ script.estimated_duration_seconds }} s{% else %}—{% endif %}
+        </dd>
+        <dt class="col-5 text-secondary">Source Articles</dt>
+        <dd class="col-7 mb-2">{{ script.source_article_count }}</dd>
+        <dt class="col-5 text-secondary">Generated</dt>
+        <dd class="col-7 mb-0">{{ script.generated_at|default:script.created_at }}</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-8">
+    <div class="card p-4 mb-4">
+      <h2 class="h6 text-secondary text-uppercase mb-3">TTS Audio</h2>
+      {% if script.has_generated_audio %}
+      <p class="text-secondary small mb-3">
+        Generated segment audio for this script. Use the players below or in each dialogue block.
+      </p>
+      <div class="d-flex flex-column gap-3">
+        {% for segment in script.segments %}
+        {% if segment.audio_asset_id %}
+        <div class="segment-audio-player p-3 border rounded">
+          <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+            <span class="script-speaker-badge">{{ segment.speaker|title }}</span>
+            <span class="text-secondary small">#{{ segment.sequence }}</span>
+            {% if segment.audio_duration_seconds %}
+            <span class="text-secondary small ms-auto">{{ segment.audio_duration_seconds }} s</span>
+            {% endif %}
+          </div>
+          <audio controls preload="metadata" class="w-100">
+            <source src="{% url 'operations:audio_asset' segment.audio_asset_id %}" type="audio/wav">
+            Your browser does not support audio playback.
+          </audio>
+        </div>
+        {% endif %}
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty-state mb-0">
+        {% if can_generate_audio %}
+        No generated audio yet. Click <strong>Generate TTS Audio</strong> above.
+        {% else %}
+        Script must be ready before TTS audio can be generated.
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+
+    {% if script.generation_notes %}
+    <div class="card p-4 mb-4">
+      <h2 class="h6 text-secondary text-uppercase mb-3">Generation Notes</h2>
+      <div class="article-body">{{ script.generation_notes|linebreaksbr }}</div>
+    </div>
+    {% endif %}
+
+    <div class="card p-4">
+      <h2 class="h6 text-secondary text-uppercase mb-3">Dialogue</h2>
+      {% if script.segments %}
+      <div class="script-segments">
+        {% for segment in script.segments %}
+        <div class="script-segment script-segment-{{ segment.speaker }}">
+          <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+            <span class="script-speaker-badge">{{ segment.speaker|title }}</span>
+            {% if segment.emotion %}
+            <span class="badge text-bg-light border text-secondary">{{ segment.emotion }}</span>
+            {% endif %}
+            {% if segment.voice %}
+            <span class="text-secondary small">{{ segment.voice }}</span>
+            {% endif %}
+            <span class="text-secondary small ms-auto">#{{ segment.sequence }}</span>
+          </div>
+          <div class="script-segment-text mb-2">{{ segment.text|linebreaksbr }}</div>
+          {% if segment.audio_asset_id %}
+          <audio controls preload="none" class="w-100 segment-inline-audio">
+            <source src="{% url 'operations:audio_asset' segment.audio_asset_id %}" type="audio/wav">
+          </audio>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty-state">
+        {% if script.status == 'generating' %}
+        Script is still generating. Refresh this page in a moment.
+        {% else %}
+        No dialogue segments stored for this script yet.
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

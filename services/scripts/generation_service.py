@@ -11,6 +11,7 @@ from django.utils import timezone
 from apps.articles.models import Article
 from apps.episodes.models import Episode, EpisodeStatus
 from apps.scripts.models import Script, ScriptSegment, ScriptStatus, ValidationStatus
+from apps.scheduler.models import Job
 from domain.llm.dtos import LLMRequest
 from domain.scripts.exceptions import ScriptGenerationError, ScriptValidationError
 from domain.scripts.schema import PodcastScriptSchema
@@ -22,6 +23,7 @@ from services.scripts.validation_service import (
     ScriptValidationService,
 )
 from services.scripts.version_service import ScriptVersionService
+from services.jobs.job_service import JobService
 
 if TYPE_CHECKING:
     from services.llm.service import LLMService
@@ -61,8 +63,15 @@ class ScriptGenerationService:
         self._version_service = version_service or ScriptVersionService()
         self._last_token_usage: dict[str, int] = {}
 
-    def generate(self, episode: Episode) -> Script:
+    def generate(self, episode: Episode, *, job: Job | None = None) -> Script:
         """Generate a new script version for the given episode."""
+        job_service = JobService()
+
+        def _progress(value: int) -> None:
+            if job is not None:
+                job_service.update_progress(job, value)
+
+        _progress(10)
         articles = list(episode.articles.prefetch_related("tags").order_by("title"))
         if not articles:
             raise ScriptGenerationError(
@@ -96,10 +105,14 @@ class ScriptGenerationService:
             model_name=model_name,
             prompt_version=prompt_version,
         )
+        _progress(25)
 
         try:
+            _progress(35)
             parsed = self._call_llm(episode, articles)
+            _progress(70)
             validation = self._validation.validate(parsed)
+            _progress(85)
             script = self._persist_script(
                 script=script,
                 articles=articles,
@@ -107,6 +120,7 @@ class ScriptGenerationService:
                 validation=validation,
                 token_usage=self._last_token_usage,
             )
+            _progress(95)
         except (ScriptGenerationError, ScriptValidationError) as exc:
             self._mark_failed(script, str(exc))
             raise

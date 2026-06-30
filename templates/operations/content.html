@@ -19,6 +19,44 @@
 </div>
 {% endif %}
 
+<ul class="nav nav-tabs monitor-tabs mb-4" role="tablist">
+  <li class="nav-item" role="presentation">
+    <a class="nav-link{% if content_view == 'articles' %} active{% endif %}" href="{% url 'operations:content' %}{% if content_filter != 'all' %}?type={{ content_filter }}{% endif %}" role="tab">
+      <i class="bi bi-journal-text me-1"></i>Articles
+    </a>
+  </li>
+  <li class="nav-item" role="presentation">
+    <a class="nav-link{% if content_view == 'scripts' %} active{% endif %}" href="{% url 'operations:content' %}?view=scripts" role="tab">
+      <i class="bi bi-file-earmark-text me-1"></i>Scripts
+      {% if pipeline_stats.scripts_total %}<span class="badge text-bg-secondary ms-1">{{ pipeline_stats.scripts_total }}</span>{% endif %}
+    </a>
+  </li>
+  <li class="nav-item" role="presentation">
+    <a class="nav-link{% if content_view == 'failed-jobs' %} active{% endif %}" href="{% url 'operations:content' %}?view=failed-jobs" role="tab">
+      <i class="bi bi-exclamation-triangle me-1"></i>Failed Jobs
+      {% if pipeline_stats.failed_jobs %}<span class="badge text-bg-danger ms-1">{{ pipeline_stats.failed_jobs }}</span>{% endif %}
+    </a>
+  </li>
+  <li class="nav-item" role="presentation">
+    <a class="nav-link{% if content_view == 'episodes-today' %} active{% endif %}" href="{% url 'operations:content' %}?view=episodes-today" role="tab">
+      <i class="bi bi-calendar-day me-1"></i>Episodes Today
+      {% if pipeline_stats.episodes_today %}<span class="badge text-bg-secondary ms-1">{{ pipeline_stats.episodes_today }}</span>{% endif %}
+    </a>
+  </li>
+  <li class="nav-item" role="presentation">
+    <a class="nav-link{% if content_view == 'waiting-for-audio' %} active{% endif %}" href="{% url 'operations:content' %}?view=waiting-for-audio" role="tab">
+      <i class="bi bi-soundwave me-1"></i>Waiting for Audio
+      {% if pipeline_stats.waiting_for_audio %}<span class="badge text-bg-warning text-dark ms-1">{{ pipeline_stats.waiting_for_audio }}</span>{% endif %}
+    </a>
+  </li>
+  <li class="nav-item" role="presentation">
+    <a class="nav-link{% if content_view == 'fail-log' %} active{% endif %}" href="{% url 'operations:content' %}?view=fail-log" role="tab">
+      <i class="bi bi-bug me-1"></i>Fail Log
+    </a>
+  </li>
+</ul>
+
+{% if content_view == "articles" %}
 <div class="row g-3 mb-4">
   <div class="col-6 col-md-3">
     <div class="card p-3 h-100">
@@ -43,6 +81,162 @@
       <div class="stat-label text-secondary">Script Sources</div>
       <div class="h4 fw-bold mb-0">{{ article_totals.selected_for_script }}</div>
     </div>
+  </div>
+</div>
+
+<div class="card p-4 mb-4">
+  <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+    <div>
+      <h2 class="h5 mb-1">Script Generation</h2>
+      <p class="text-secondary small mb-0">
+        Generate a podcast script from selected articles. Script runs are manual from this page (not scheduled).
+      </p>
+    </div>
+    <span class="insight-icon"><i class="bi bi-file-earmark-text"></i></span>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+      <div class="small text-secondary">Script Sources</div>
+      <div class="fw-semibold">{{ script_workspace.selected_for_script }}</div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="small text-secondary">Draft Episode</div>
+      <div class="fw-semibold">
+        {% if script_workspace.episode_id %}
+        {{ script_workspace.episode_title|truncatechars:24 }}
+        {% else %}
+        Will be created on generate
+        {% endif %}
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="small text-secondary">Linked Articles</div>
+      <div class="fw-semibold">{{ script_workspace.linked_articles }}</div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="small text-secondary">Latest Script</div>
+      <div class="fw-semibold">
+        {% if script_workspace.latest_script_version %}
+        v{{ script_workspace.latest_script_version }}
+        <span class="badge text-bg-light border text-secondary ms-1">{{ script_workspace.latest_script_status }}</span>
+        {% else %}
+        —
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="d-flex flex-wrap gap-2 align-items-center">
+    {% if script_workspace.active_script_job_id %}
+    <button type="button" class="btn btn-secondary" disabled aria-disabled="true">
+      <i class="bi bi-hourglass-split me-1"></i>Generating...
+    </button>
+    {% if script_workspace.can_abort_script %}
+    <form method="post" class="d-inline" data-script-abort-form>
+      {% csrf_token %}
+      <input type="hidden" name="content_action" value="abort_script">
+      <input type="hidden" name="type" value="{{ content_filter }}">
+      <button
+        type="submit"
+        class="btn btn-outline-danger"
+        data-loading-label='<i class="bi bi-hourglass-split me-1"></i>Aborting...'
+      >
+        <i class="bi bi-x-circle me-1"></i>Abort
+      </button>
+    </form>
+    {% else %}
+    <span class="text-secondary small">Running — abort unavailable until queued.</span>
+    {% endif %}
+    {% else %}
+    <button
+      type="button"
+      id="generate-script-btn"
+      class="btn btn-primary"
+      data-bs-toggle="modal"
+      data-bs-target="#generateScriptModal"
+      {% if not script_workspace.can_generate %}disabled{% endif %}
+    >
+      <i class="bi bi-magic me-1"></i>Generate Script
+    </button>
+    {% endif %}
+    {% if script_workspace.episode_id %}
+    <a
+      class="btn btn-outline-secondary"
+      href="{% url 'operations:episode_pipeline' script_workspace.episode_id %}"
+    >
+      <i class="bi bi-diagram-3 me-1"></i>View Pipeline
+    </a>
+    <a class="btn btn-outline-secondary" href="{% url 'operations:content' %}?view=scripts&amp;episode={{ script_workspace.episode_id }}">
+      <i class="bi bi-pencil-square me-1"></i>Manual Script
+    </a>
+    <a
+      class="btn btn-outline-secondary"
+      href="{% url 'operations:content' %}?view=scripts&amp;episode={{ script_workspace.episode_id }}"
+    >
+      <i class="bi bi-journal-text me-1"></i>View Scripts
+    </a>
+    {% if script_workspace.can_open_tts %}
+    <a
+      class="btn btn-outline-primary"
+      href="{% url 'operations:tts_generation' %}"
+    >
+      <i class="bi bi-soundwave me-1"></i>TTS Generation
+    </a>
+    {% endif %}
+    {% endif %}
+    {% if script_workspace.active_script_job_id %}
+    {% elif script_workspace.selected_for_script == 0 %}
+    <span class="text-secondary small">Select at least one script source in the table below.</span>
+    {% endif %}
+  </div>
+
+  <div
+    id="script-generation-progress"
+    class="ops-inline-job-progress-wrapper"
+    data-inline-job="{{ script_workspace.active_script_job_id }}"
+    data-inline-job-label="Script Generation"
+    {% if not script_workspace.active_script_job_id %}hidden{% endif %}
+  ></div>
+</div>
+
+<div class="modal fade" id="generateScriptModal" tabindex="-1" aria-labelledby="generateScriptModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <form method="post" class="modal-content" data-script-generate-form>
+      {% csrf_token %}
+      <input type="hidden" name="content_action" value="generate_script">
+      <input type="hidden" name="type" value="{{ content_filter }}">
+      <div class="modal-header">
+        <h2 class="modal-title h5" id="generateScriptModalLabel">Generate Script</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-secondary small">
+          Name this episode before queuing script generation from the selected articles.
+        </p>
+        <label class="form-label" for="episode_title">Episode title</label>
+        <input
+          type="text"
+          class="form-control"
+          id="episode_title"
+          name="episode_title"
+          required
+          maxlength="500"
+          value="{{ script_workspace.episode_title }}"
+          placeholder="e.g. Tech Briefing — June 30"
+        >
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button
+          type="submit"
+          class="btn btn-primary"
+          data-loading-label='<i class="bi bi-hourglass-split me-1"></i>Generating...'
+        >
+          <i class="bi bi-magic me-1"></i>Generate
+        </button>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -158,4 +352,15 @@
     syncSelectAll();
   })();
 </script>
+{% elif content_view == "failed-jobs" %}
+  {% include "operations/partials/content_failed_jobs.html" %}
+{% elif content_view == "episodes-today" %}
+  {% include "operations/partials/content_episodes_today.html" %}
+{% elif content_view == "waiting-for-audio" %}
+  {% include "operations/partials/content_waiting_audio.html" %}
+{% elif content_view == "scripts" %}
+  {% include "operations/partials/content_scripts.html" %}
+{% elif content_view == "fail-log" %}
+  {% include "operations/partials/content_fail_log.html" %}
+{% endif %}
 {% endblock %}

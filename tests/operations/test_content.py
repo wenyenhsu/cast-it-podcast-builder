@@ -6,7 +6,8 @@ from django.urls import reverse
 from apps.articles.models import Article, ArticleStatus
 from apps.episodes.models import Episode, EpisodeArticle, EpisodeStatus
 from apps.providers.models import NewsSource, ProviderType
-from services.admin.content_library import ContentLibraryService
+from apps.scheduler.models import Job, JobStatus, JobType
+from services.admin.content_library import ContentLibraryError, ContentLibraryService
 
 
 @pytest.mark.django_db
@@ -19,11 +20,12 @@ def test_content_page_renders_unified_table(admin_client, news_source: NewsSourc
         status=ArticleStatus.COLLECTED,
     )
     response = admin_client.get(reverse("operations:content"))
-    assert response.status_code == 200
     content = response.content.decode()
     assert "Articles" in content
+    assert "Script Generation" in content
     assert "RSS Story" in content
-    assert "Type" in content
+    assert "generateScriptModal" in content
+    assert 'name="episode_title"' in content
 
 
 @pytest.mark.django_db
@@ -132,6 +134,256 @@ def test_filtered_save_does_not_clear_other_type_selection(
     manual_article.refresh_from_db()
     assert rss_article.selected_for_script is False
     assert manual_article.selected_for_script is True
+
+
+@pytest.mark.django_db
+def test_generate_script_from_content_ui_redirects_with_job(
+    admin_client,
+    news_source: NewsSource,
+    mock_job_dispatch,
+) -> None:
+    del mock_job_dispatch
+    Article.objects.create(
+        title="Script Source",
+        source=news_source,
+        url="https://example.com/script-source",
+        content_hash="script-source-hash",
+        status=ArticleStatus.COLLECTED,
+        selected_for_script=True,
+    )
+
+    response = admin_client.post(
+        reverse("operations:content"),
+        {
+            "content_action": "generate_script",
+            "episode_title": "Morning Tech Brief",
+            "type": "all",
+        },
+    )
+    assert response.status_code == 302
+    assert "job=" in response.url
+    episode = Episode.objects.get(status=EpisodeStatus.DRAFT)
+    assert episode.title == "Morning Tech Brief"
+
+
+@pytest.mark.django_db
+def test_job_status_api(admin_client) -> None:
+    job = Job.objects.create(
+        job_type=JobType.GENERATE_SCRIPT,
+        status=JobStatus.RUNNING,
+        progress=42,
+    )
+    response = admin_client.get(reverse("operations:job_status_api", args=[job.pk]))
+    assert response.status_code == 200
+    data = response.json()
+    assert data["progress"] == 42
+    assert data["label"] == "Script Generation"
+    assert data["is_terminal"] is False
+
+
+@pytest.mark.django_db
+def test_generate_script_from_content_ui(
+    admin_client,
+    news_source: NewsSource,
+    mock_job_dispatch,
+) -> None:
+    del mock_job_dispatch
+    Article.objects.create(
+        title="Script Source",
+        source=news_source,
+        url="https://example.com/script-source",
+        content_hash="script-source-hash",
+        status=ArticleStatus.COLLECTED,
+        selected_for_script=True,
+    )
+
+    response = admin_client.post(
+        reverse("operations:content"),
+        {
+            "content_action": "generate_script",
+            "episode_title": "Weekly Roundup",
+            "type": "all",
+        },
+    )
+    assert response.status_code == 302
+    assert Episode.objects.filter(status=EpisodeStatus.DRAFT, title="Weekly Roundup").exists()
+
+
+@pytest.mark.django_db
+def test_generate_script_requires_episode_title(
+    admin_client,
+    news_source: NewsSource,
+) -> None:
+    Article.objects.create(
+        title="Script Source",
+        source=news_source,
+        url="https://example.com/script-source",
+        content_hash="script-source-hash",
+        status=ArticleStatus.COLLECTED,
+        selected_for_script=True,
+    )
+
+    response = admin_client.post(
+        reverse("operations:content"),
+        {
+            "content_action": "generate_script",
+            "episode_title": "   ",
+            "type": "all",
+        },
+    )
+    assert response.status_code == 200
+    assert "Episode title is required" in response.content.decode()
+
+
+@pytest.mark.django_db
+def test_queue_script_generation_rejects_duplicate_active_job(
+    news_source: NewsSource,
+) -> None:
+    episode = Episode.objects.create(title="Draft", status=EpisodeStatus.DRAFT)
+    Article.objects.create(
+        title="Source",
+        source=news_source,
+        url="https://example.com/source",
+        content_hash="source-hash",
+        selected_for_script=True,
+    )
+    Job.objects.create(
+        job_type=JobType.GENERATE_SCRIPT,
+        status=JobStatus.RUNNING,
+        payload={"episode_id": str(episode.id)},
+    )
+    service = ContentLibraryService()
+    with pytest.raises(ContentLibraryError, match="already running"):
+        service.queue_script_generation(episode_title="Draft")
+
+
+@pytest.mark.django_db
+def test_abort_script_generation_cancels_active_job(
+    news_source: NewsSource,
+) -> None:
+    episode = Episode.objects.create(title="Draft", status=EpisodeStatus.DRAFT)
+    Article.objects.create(
+        title="Source",
+        source=news_source,
+        url="https://example.com/source",
+        content_hash="source-hash",
+        selected_for_script=True,
+    )
+    job = Job.objects.create(
+        job_type=JobType.GENERATE_SCRIPT,
+        status=JobStatus.QUEUED,
+        payload={"episode_id": str(episode.id)},
+    )
+    service = ContentLibraryService()
+    aborted_id = service.abort_script_generation()
+    assert aborted_id == str(job.id)
+    job.refresh_from_db()
+    assert job.status == JobStatus.CANCELLED
+
+
+@pytest.mark.django_db
+def test_abort_script_from_content_ui(admin_client, news_source: NewsSource) -> None:
+    episode = Episode.objects.create(title="Draft", status=EpisodeStatus.DRAFT)
+    Article.objects.create(
+        title="Source",
+        source=news_source,
+        url="https://example.com/source",
+        content_hash="source-hash",
+        selected_for_script=True,
+    )
+    Job.objects.create(
+        job_type=JobType.GENERATE_SCRIPT,
+        status=JobStatus.QUEUED,
+        payload={"episode_id": str(episode.id)},
+    )
+
+    response = admin_client.post(
+        reverse("operations:content"),
+        {
+            "content_action": "abort_script",
+            "type": "all",
+        },
+    )
+    assert response.status_code == 302
+    assert "aborted_job=" in response.url
+
+    page = admin_client.get(reverse("operations:content"))
+    content = page.content.decode()
+    assert "Generate Script" in content
+    assert "btn-outline-danger" not in content
+
+
+@pytest.mark.django_db
+def test_content_shows_abort_while_script_queued(
+    admin_client,
+    news_source: NewsSource,
+) -> None:
+    episode = Episode.objects.create(title="Draft", status=EpisodeStatus.DRAFT)
+    Article.objects.create(
+        title="Source",
+        source=news_source,
+        url="https://example.com/source",
+        content_hash="source-hash",
+        selected_for_script=True,
+    )
+    Job.objects.create(
+        job_type=JobType.GENERATE_SCRIPT,
+        status=JobStatus.QUEUED,
+        payload={"episode_id": str(episode.id)},
+    )
+
+    response = admin_client.get(reverse("operations:content"))
+    content = response.content.decode()
+    assert "Generating..." in content
+    assert "Abort" in content
+    assert 'id="generate-script-btn"' not in content
+
+
+@pytest.mark.django_db
+def test_delete_episode_from_content_ui(admin_client) -> None:
+    episode = Episode.objects.create(title="Delete Me", status=EpisodeStatus.DRAFT)
+
+    response = admin_client.post(
+        reverse("operations:content"),
+        {
+            "content_action": "delete_episode",
+            "episode_id": str(episode.id),
+            "content_view": "episodes-today",
+            "type": "all",
+        },
+    )
+    assert response.status_code == 302
+    assert "view=episodes-today" in response.url
+    assert not Episode.objects.filter(pk=episode.id).exists()
+
+
+@pytest.mark.django_db
+def test_episodes_today_view_has_delete_not_admin(admin_client) -> None:
+    Episode.objects.create(title="Today Ep", status=EpisodeStatus.DRAFT)
+    response = admin_client.get(
+        reverse("operations:content"),
+        {"view": "episodes-today"},
+    )
+    content = response.content.decode()
+    assert "Delete" in content
+    assert "admin:episodes_episode_change" not in content
+    assert "admin:episodes_episode_changelist" not in content
+
+
+@pytest.mark.django_db
+def test_queue_script_generation_requires_selection(news_source: NewsSource) -> None:
+    del news_source
+    service = ContentLibraryService()
+    with pytest.raises(ContentLibraryError):
+        service.queue_script_generation(episode_title="")
+
+
+@pytest.mark.django_db
+def test_content_scripts_tab_link(admin_client) -> None:
+    response = admin_client.get(reverse("operations:content"))
+    content = response.content.decode()
+    assert "view=scripts" in content
+    assert "Scripts" in content
 
 
 @pytest.mark.django_db

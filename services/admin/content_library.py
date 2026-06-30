@@ -1,10 +1,28 @@
 """Article library management for the operations content dashboard."""
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+from django.utils import timezone
 
 from apps.articles.models import Article
 from apps.episodes.models import Episode, EpisodeArticle, EpisodeStatus
 from apps.providers.models import ProviderType
+from apps.scripts.models import Script, ScriptStatus
+from domain.jobs.exceptions import JobCancellationError
+from services.admin.dispatch import AdminJobDispatchService
+from services.admin.job_progress import JobProgressService
+from services.jobs.job_service import CANCELLABLE_STATUSES
+
+if TYPE_CHECKING:
+    from apps.scheduler.models import Job
+
+
+class ContentLibraryError(Exception):
+    """Raised when content library actions fail validation."""
+
+    def __init__(self, message: str) -> None:
+        self.message = message
+        super().__init__(message)
 
 
 class ContentLibraryService:
@@ -63,24 +81,135 @@ class ContentLibraryService:
                 updated += 1
         return updated
 
-    def sync_selected_articles_to_draft_episode(self) -> str | None:
-        episode = (
+    def _draft_episode(self) -> Episode | None:
+        return (
             Episode.objects.filter(
                 status__in=[EpisodeStatus.DRAFT, EpisodeStatus.COLLECTING]
             )
             .order_by("-created_at")
             .first()
         )
-        if episode is None:
+
+    def ensure_draft_episode(self) -> Episode:
+        episode = self._draft_episode()
+        if episode is not None:
+            return episode
+        return Episode.objects.create(
+            title=f"Draft {timezone.localdate()}",
+            status=EpisodeStatus.DRAFT,
+        )
+
+    def script_workspace(self) -> dict[str, Any]:
+        episode = self._draft_episode()
+        latest_script: Script | None = None
+        if episode is not None:
+            latest_script = episode.scripts.order_by("-version").first()
+        selected_count = Article.objects.filter(selected_for_script=True).count()
+        latest_ready_script_id = ""
+        if episode is not None:
+            ready_script = (
+                episode.scripts.filter(
+                    status__in=[ScriptStatus.READY, ScriptStatus.APPROVED]
+                )
+                .order_by("-version")
+                .first()
+            )
+            if ready_script is not None:
+                latest_ready_script_id = str(ready_script.id)
+        progress_service = JobProgressService()
+        active_script_job: Job | None = None
+        if episode is not None:
+            active_script_job = progress_service.find_active_script_job(str(episode.id))
+        return {
+            "episode_id": str(episode.id) if episode else "",
+            "episode_title": episode.title if episode else "",
+            "episode_status": episode.status if episode else "",
+            "linked_articles": episode.articles.count() if episode else 0,
+            "selected_for_script": selected_count,
+            "can_generate": selected_count > 0
+            and active_script_job is None,
+            "latest_script_version": latest_script.version if latest_script else None,
+            "latest_script_status": latest_script.status if latest_script else "",
+            "latest_ready_script_id": latest_ready_script_id,
+            "can_open_tts": bool(latest_ready_script_id),
+            "active_script_job_id": str(active_script_job.id)
+            if active_script_job
+            else "",
+            "can_abort_script": active_script_job is not None
+            and active_script_job.status in CANCELLABLE_STATUSES,
+            "script_job_status": active_script_job.status if active_script_job else "",
+        }
+
+    def sync_selected_articles_to_draft_episode(
+        self,
+        episode: Episode | None = None,
+    ) -> str | None:
+        target = episode or self._draft_episode()
+        if target is None:
             return None
 
         selected_articles = list(
             Article.objects.filter(selected_for_script=True).order_by("-created_at")
         )
         selected_ids = {article.id for article in selected_articles}
-        EpisodeArticle.objects.filter(episode=episode).exclude(
+        EpisodeArticle.objects.filter(episode=target).exclude(
             article_id__in=selected_ids
         ).delete()
         for article in selected_articles:
-            EpisodeArticle.objects.get_or_create(episode=episode, article=article)
-        return str(episode.id)
+            EpisodeArticle.objects.get_or_create(episode=target, article=article)
+        return str(target.id)
+
+    def queue_script_generation(self, *, episode_title: str) -> tuple[str, str]:
+        selected_count = Article.objects.filter(selected_for_script=True).count()
+        if selected_count == 0:
+            raise ContentLibraryError(
+                "Select at least one article as script source before generating."
+            )
+
+        title = episode_title.strip()
+        if not title:
+            raise ContentLibraryError("Episode title is required.")
+
+        episode = self.ensure_draft_episode()
+        if episode.title != title:
+            episode.title = title
+            episode.save(update_fields=["title", "updated_at"])
+
+        active_job = JobProgressService().find_active_script_job(str(episode.id))
+        if active_job is not None:
+            raise ContentLibraryError(
+                "Script generation is already running. Wait for it to finish or dismiss the job panel."
+            )
+
+        self.sync_selected_articles_to_draft_episode(episode)
+        if episode.articles.count() == 0:
+            raise ContentLibraryError(
+                "Draft episode has no linked articles. Save script sources first."
+            )
+
+        job = AdminJobDispatchService().generate_script(str(episode.id))
+        return str(episode.id), str(job.id)
+
+    def abort_script_generation(self) -> str:
+        episode = self._draft_episode()
+        if episode is None:
+            raise ContentLibraryError("No draft episode found.")
+
+        active_job = JobProgressService().find_active_script_job(str(episode.id))
+        if active_job is None:
+            raise ContentLibraryError("No active script generation job to abort.")
+
+        try:
+            AdminJobDispatchService().cancel_job(active_job)
+        except JobCancellationError as exc:
+            raise ContentLibraryError(str(exc)) from exc
+
+        return str(active_job.id)
+
+    def delete_episode(self, episode_id: str) -> str:
+        episode = Episode.objects.filter(pk=episode_id).first()
+        if episode is None:
+            raise ContentLibraryError("Episode not found.")
+        title = episode.title
+        episode.delete()
+        return title

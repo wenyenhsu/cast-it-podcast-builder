@@ -225,6 +225,8 @@ def test_episode_pipeline_view(admin_client, news_source: NewsSource) -> None:
     content = response.content.decode()
     assert "News Collection" in content
     assert "Publishing" in content
+    assert "pipeline-panel" in content
+    assert "Items:" in content
 
 
 @pytest.mark.django_db
@@ -246,3 +248,83 @@ def test_admin_index_is_separate(admin_client) -> None:
     assert response.status_code == 200
     content = response.content.decode()
     assert "Operations Overview" not in content
+
+
+@pytest.mark.django_db
+def test_dashboard_stats_list_methods(news_source: NewsSource) -> None:
+    del news_source
+    episode = Episode.objects.create(
+        title="Waiting Episode",
+        status=EpisodeStatus.GENERATING_SCRIPT,
+    )
+    Episode.objects.create(title="Draft Today", status=EpisodeStatus.DRAFT)
+    Job.objects.create(
+        job_type=JobType.GENERATE_SCRIPT,
+        status=JobStatus.FAILED,
+        error_message="LLM timeout",
+        payload={"episode_id": str(episode.id)},
+    )
+
+    service = DashboardStatsService()
+    failed = service.list_failed_jobs()
+    waiting = service.list_episodes_waiting_for_audio()
+    today = service.list_episodes_today()
+
+    assert len(failed) == 1
+    assert failed[0]["error_message"] == "LLM timeout"
+    assert failed[0]["episode_id"] == str(episode.id)
+    assert len(waiting) == 1
+    assert waiting[0]["title"] == "Waiting Episode"
+    assert len(today) >= 2
+
+
+@pytest.mark.django_db
+def test_dashboard_insights_redirects_to_content(admin_client) -> None:
+    response = admin_client.get(
+        reverse("operations:dashboard_insights"),
+        {"tab": "failed-jobs"},
+    )
+    assert response.status_code == 302
+    assert response.url.endswith("/content/?view=failed-jobs")
+
+
+@pytest.mark.django_db
+def test_content_pipeline_views(admin_client) -> None:
+    Job.objects.create(
+        job_type=JobType.GENERATE_SCRIPT,
+        status=JobStatus.FAILED,
+        error_message="boom",
+    )
+    Episode.objects.create(title="Today Ep", status=EpisodeStatus.DRAFT)
+    Episode.objects.create(
+        title="Audio Ep",
+        status=EpisodeStatus.GENERATING_AUDIO,
+    )
+
+    failed = admin_client.get(reverse("operations:content"), {"view": "failed-jobs"})
+    assert failed.status_code == 200
+    assert "boom" in failed.content.decode()
+
+    today = admin_client.get(reverse("operations:content"), {"view": "episodes-today"})
+    assert today.status_code == 200
+    assert "Today Ep" in today.content.decode()
+
+    waiting = admin_client.get(
+        reverse("operations:content"),
+        {"view": "waiting-for-audio"},
+    )
+    assert waiting.status_code == 200
+    assert "Audio Ep" in waiting.content.decode()
+
+    fail_log = admin_client.get(reverse("operations:content"), {"view": "fail-log"})
+    assert fail_log.status_code == 200
+    assert "boom" in fail_log.content.decode()
+
+
+@pytest.mark.django_db
+def test_dashboard_stat_cards_link_to_content(admin_client) -> None:
+    response = admin_client.get(reverse("operations:dashboard"))
+    content = response.content.decode()
+    assert "view=failed-jobs" in content
+    assert "view=episodes-today" in content
+    assert "view=waiting-for-audio" in content

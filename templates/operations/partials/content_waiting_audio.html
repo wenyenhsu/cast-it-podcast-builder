@@ -1,0 +1,41 @@
+<div class="card p-4">
+  <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+    <div>
+      <h2 class="h5 mb-1">Waiting for Audio</h2>
+      <p class="text-secondary small mb-0">Episodes generating a script or TTS audio.</p>
+    </div>
+  </div>
+  <div class="table-responsive">
+    <table class="ops-table">
+      <thead>
+        <tr>
+          <th>Title</th>
+          <th>Status</th>
+          <th>Updated</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for episode in episodes_waiting_for_audio %}
+        <tr>
+          <td class="fw-semibold">{{ episode.title }}</td>
+          <td>
+            <span class="badge {% if episode.status == 'generating_script' %}text-bg-primary{% elif episode.status == 'generating_audio' %}text-bg-warning text-dark{% else %}text-bg-secondary{% endif %} text-capitalize">
+              {{ episode.status|default:"—" }}
+            </span>
+          </td>
+          <td class="text-secondary text-nowrap small">{{ episode.updated_at }}</td>
+          <td class="text-nowrap">
+            <a class="btn btn-sm btn-outline-primary" href="{% url 'operations:episode_pipeline' episode.id %}">Pipeline</a>
+            {% include "operations/partials/content_episode_tts_button.html" %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="4" class="empty-state">No episodes are waiting for audio.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>

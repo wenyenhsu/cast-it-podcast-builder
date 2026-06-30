@@ -35,10 +35,12 @@
     </div>
   </div>
   <div class="col-6 col-lg-3">
-    <div class="card p-3 h-100">
-      <div class="stat-label text-secondary">Failed Jobs</div>
-      <div class="stat-value {% if failed_jobs %}text-danger{% endif %}">{{ failed_jobs }}</div>
-    </div>
+    <a class="stat-card-link" href="{% url 'operations:content' %}?view=failed-jobs">
+      <div class="card p-3 h-100">
+        <div class="stat-label text-secondary">Failed Jobs</div>
+        <div class="stat-value {% if failed_jobs %}text-danger{% endif %}">{{ failed_jobs }}</div>
+      </div>
+    </a>
   </div>
   <div class="col-6 col-lg-3">
     <div class="card p-3 h-100">
@@ -47,16 +49,20 @@
     </div>
   </div>
   <div class="col-6 col-lg-3">
-    <div class="card p-3 h-100">
-      <div class="stat-label text-secondary">Episodes Today</div>
-      <div class="stat-value">{{ episodes_generated_today }}</div>
-    </div>
+    <a class="stat-card-link" href="{% url 'operations:content' %}?view=episodes-today">
+      <div class="card p-3 h-100">
+        <div class="stat-label text-secondary">Episodes Today</div>
+        <div class="stat-value">{{ episodes_generated_today }}</div>
+      </div>
+    </a>
   </div>
   <div class="col-6 col-lg-3">
-    <div class="card p-3 h-100">
-      <div class="stat-label text-secondary">Waiting for Audio</div>
-      <div class="stat-value">{{ episodes_waiting_for_audio }}</div>
-    </div>
+    <a class="stat-card-link" href="{% url 'operations:content' %}?view=waiting-for-audio">
+      <div class="card p-3 h-100">
+        <div class="stat-label text-secondary">Waiting for Audio</div>
+        <div class="stat-value">{{ episodes_waiting_for_audio }}</div>
+      </div>
+    </a>
   </div>
   <div class="col-6 col-lg-3">
     <div class="card p-3 h-100">

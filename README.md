@@ -190,6 +190,8 @@ docker compose exec web python manage.py changepassword <username>
 |------|---------|
 | `/` | Overview dashboard |
 | `/content/` | Unified article table (RSS + Manual) with script source checkboxes |
+| `/scripts/` | Generated script list (`?episode=<id>` to filter) |
+| `/scripts/<script-id>/` | Script detail with dialogue segments |
 | `/providers/` | LLM, TTS, and Information Resources (`?tab=sources&resource=rss\|manual`) |
 | `/monitor/` | Health, metrics, and logs (tabbed) |
 | `/pipeline/<episode-id>/` | Episode pipeline status |
@@ -218,7 +220,7 @@ python manage.py runserver
 Start Celery in separate terminals:
 
 ```bash
-celery -A config worker --loglevel=info
+celery -A config worker --loglevel=info -Q ingestion,llm,tts,audio,publishing,monitoring,celery
 celery -A config beat --loglevel=info \
   --scheduler django_celery_beat.schedulers:DatabaseScheduler
 ```
@@ -395,7 +397,7 @@ With `celery-beat` running, default cron jobs (configurable via `BEAT_*_CRON` in
 |--------------|-----|
 | 06:00 | Import news |
 | 07:00 | Episode planning |
-| 08:00 | Script generation |
+| — | Script generation (manual from `/content/`) |
 | 09:00 | Audio generation |
 | 10:00 | Publish episode |
 
@@ -548,7 +550,7 @@ Configuration is fully environment-driven. Example files:
 | Publishing | `ENABLE_RSS_PUBLISHING`, `ENABLE_YOUTUBE_PUBLISHING`, `RSS_FEED_*` |
 | Observability | `LOG_LEVEL`, `LOG_FORMAT`, `ENABLE_METRICS`, `ENABLE_TRACING` |
 | Deployment | `APP_VERSION`, `BUILD_GIT_COMMIT`, `IMAGE_TAG`, `USE_S3_STORAGE` |
-| Beat schedules | `BEAT_IMPORT_NEWS_CRON`, `BEAT_GENERATE_SCRIPT_CRON`, etc. |
+| Beat schedules | `BEAT_IMPORT_NEWS_CRON`, `BEAT_GENERATE_AUDIO_CRON`, etc. (script is manual via `/content/`) |
 
 ---
 

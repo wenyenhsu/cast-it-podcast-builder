@@ -57,7 +57,8 @@ case "${COMMAND}" in
         validate_config
         run_migrations
         log "Starting Celery worker..."
-        exec celery -A config worker --loglevel="${CELERY_LOG_LEVEL:-info}"
+        WORKER_QUEUES="${CELERY_WORKER_QUEUES:-ingestion,llm,tts,audio,publishing,monitoring,celery}"
+        exec celery -A config worker --loglevel="${CELERY_LOG_LEVEL:-info}" -Q "${WORKER_QUEUES}"
         ;;
     celery-beat)
         wait_for_dependencies

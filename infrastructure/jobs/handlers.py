@@ -6,7 +6,7 @@ from typing import Any
 from apps.articles.models import Article
 from apps.episodes.models import Episode
 from apps.scheduler.models import Job
-from apps.scripts.models import Script
+from apps.scripts.models import Script, ScriptStatus
 from domain.jobs.exceptions import JobPermanentError, JobTransientError
 from domain.jobs.queues import (
     QUEUE_AUDIO,
@@ -121,13 +121,41 @@ class GenerateScriptHandler(BaseJobHandler):
 
         episode_id = _require_payload_key(job, "episode_id")
         episode = Episode.objects.get(pk=episode_id)
+        JobService().update_progress(job, 5)
         try:
-            script = ScriptGenerationService(LLMService()).generate(episode)
+            script = ScriptGenerationService(LLMService()).generate(episode, job=job)
         except (ProviderUnavailableException, TimeoutException) as exc:
             raise JobTransientError(str(exc)) from exc
         except LLMException as exc:
             raise JobPermanentError(str(exc)) from exc
         return {"script_id": str(script.id), "version": script.version}
+
+
+def _resolve_script_for_audio(job: Job) -> Script:
+    script_id = job.payload.get("script_id")
+    if script_id:
+        return Script.objects.select_related("episode").get(pk=script_id)
+
+    from services.scripts.version_service import ScriptVersionService
+
+    episode_id = _require_payload_key(job, "episode_id")
+    active = ScriptVersionService().get_active_script(episode_id)
+    if active is not None:
+        return Script.objects.select_related("episode").get(pk=active.id)
+
+    script = (
+        Script.objects.filter(
+            episode_id=episode_id,
+            status__in=[ScriptStatus.READY, ScriptStatus.APPROVED],
+        )
+        .order_by("-version")
+        .first()
+    )
+    if script is None:
+        raise JobPermanentError(
+            f"No ready script found for episode {episode_id}."
+        )
+    return Script.objects.select_related("episode").get(pk=script.id)
 
 
 class GenerateAudioHandler(BaseJobHandler):
@@ -140,8 +168,8 @@ class GenerateAudioHandler(BaseJobHandler):
         )
         from services.audio.generation_service import AudioGenerationService
 
-        script_id = _require_payload_key(job, "script_id")
-        script = Script.objects.select_related("episode").get(pk=script_id)
+        script = _resolve_script_for_audio(job)
+        script_id = script.id
         try:
             results = AudioGenerationService().generate_for_script(script)
         except TTSUnavailable as exc:

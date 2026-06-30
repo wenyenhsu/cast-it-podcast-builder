@@ -68,6 +68,10 @@ class AudioGenerationService:
 
     def generate_for_script(self, script: Script) -> list[SegmentAudioResult]:
         """Generate audio for all segments in a script."""
+        from services.audio.voice_setup import VoiceSetupService
+
+        VoiceSetupService().ensure_defaults(self._settings)
+
         if script.status not in {ScriptStatus.READY, ScriptStatus.APPROVED}:
             raise AudioGenerationException(
                 f"Script {script.id} is not ready for audio generation."

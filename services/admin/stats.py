@@ -10,6 +10,8 @@ from apps.episodes.models import Episode, EpisodeStatus
 from apps.providers.models import ProviderHealthCheck
 from apps.publish.models import PublishedEpisode, PublishJobStatus
 from apps.scheduler.models import Job, JobStatus
+from apps.scripts.models import Script, ScriptStatus
+from services.admin.job_progress import JobProgressService
 
 
 class DashboardStatsService:
@@ -50,7 +52,72 @@ class DashboardStatsService:
             .distinct()
             .count(),
             "published_episodes": PublishedEpisode.objects.count(),
+            "scripts_total": Script.objects.count(),
             "provider_health": provider_health,
+        }
+
+    def list_failed_jobs(self, *, limit: int = 50) -> list[dict[str, Any]]:
+        progress = JobProgressService()
+        jobs = Job.objects.filter(status=JobStatus.FAILED).order_by("-updated_at")[
+            :limit
+        ]
+        return [self._serialize_job(job, progress) for job in jobs]
+
+    def list_episodes_today(self, *, limit: int = 50) -> list[dict[str, Any]]:
+        today = timezone.now().date()
+        episodes = Episode.objects.filter(created_at__date=today).order_by(
+            "-created_at"
+        )[:limit]
+        return [self._serialize_episode(episode) for episode in episodes]
+
+    def list_episodes_waiting_for_audio(
+        self, *, limit: int = 50
+    ) -> list[dict[str, Any]]:
+        episodes = (
+            Episode.objects.filter(
+                status__in=[
+                    EpisodeStatus.GENERATING_AUDIO,
+                    EpisodeStatus.GENERATING_SCRIPT,
+                ]
+            )
+            .order_by("-updated_at")[:limit]
+        )
+        return [self._serialize_episode(episode) for episode in episodes]
+
+    @staticmethod
+    def _serialize_job(job: Job, progress: JobProgressService) -> dict[str, Any]:
+        payload = job.payload or {}
+        return {
+            "id": str(job.id),
+            "job_type": job.job_type,
+            "label": progress.label_for(job.job_type),
+            "status": job.status,
+            "error_message": job.error_message or "—",
+            "retry_count": job.retry_count,
+            "created_at": job.created_at,
+            "completed_at": job.completed_at,
+            "episode_id": str(payload.get("episode_id", "") or ""),
+            "script_id": str(payload.get("script_id", "") or ""),
+        }
+
+    @staticmethod
+    def _serialize_episode(episode: Episode) -> dict[str, Any]:
+        tts_script = (
+            episode.scripts.filter(
+                status__in=[ScriptStatus.READY, ScriptStatus.APPROVED]
+            )
+            .order_by("-version")
+            .first()
+        )
+        tts_script_id = str(tts_script.id) if tts_script else ""
+        return {
+            "id": str(episode.id),
+            "title": episode.title,
+            "status": episode.status,
+            "created_at": episode.created_at,
+            "updated_at": episode.updated_at,
+            "tts_script_id": tts_script_id,
+            "can_generate_tts": bool(tts_script_id),
         }
 
     def _provider_health_summary(self) -> list[dict[str, Any]]:

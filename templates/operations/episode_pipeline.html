@@ -11,39 +11,98 @@
       <span class="badge text-bg-light border ms-1">{{ episode.status }}</span>
     </p>
   </div>
-  <a class="btn btn-outline-secondary btn-sm" href="{% url 'admin:episodes_episode_change' episode.pk %}">
-    <i class="bi bi-pencil me-1"></i>Edit in Admin
-  </a>
+  <div class="d-flex flex-wrap gap-2">
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'operations:content' %}">
+      <i class="bi bi-arrow-left me-1"></i>Content
+    </a>
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'admin:episodes_episode_change' episode.pk %}">
+      <i class="bi bi-pencil me-1"></i>Edit in Admin
+    </a>
+  </div>
 </div>
 
-{% for stage in stages %}
-<div class="ops-pipeline-stage">
-  <div class="d-flex justify-content-between align-items-start gap-3 mb-2">
-    <h3 class="h5 mb-0">{{ stage.name }}</h3>
-    <span class="badge {% if stage.status == 'completed' %}text-bg-success{% elif stage.status == 'failed' %}text-bg-danger{% elif stage.status == 'running' %}text-bg-primary{% else %}text-bg-secondary{% endif %}">
-      {{ stage.status|title }}
+{% if pipeline_notice %}
+<div class="alert alert-info">{{ pipeline_notice }}</div>
+{% endif %}
+
+<div class="card pipeline-panel p-4">
+  <div class="d-flex flex-wrap align-items-center gap-2 gap-md-3 mb-4">
+    <h2 class="h5 mb-0">Pipeline</h2>
+    <span class="badge pipeline-status-badge pipeline-status-{{ overview.overall_status|lower }}">
+      {{ overview.overall_status }}
+    </span>
+    <span class="text-secondary small">
+      Episode run {{ overview.run_id }} · {{ overview.progress_percent }}%
     </span>
   </div>
-  <div class="row g-2 small">
-    <div class="col-6 col-md-3">
-      <span class="text-secondary">Duration</span>
-      <div class="fw-semibold">{{ stage.duration_seconds|default:"—" }} s</div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-6">
+      <div class="pipeline-time-card">
+        <div class="pipeline-time-label">Started</div>
+        <div class="pipeline-time-value">
+          {% if overview.started_at %}{{ overview.started_at|date:"M j, g:i A" }}{% else %}—{% endif %}
+        </div>
+      </div>
     </div>
-    <div class="col-6 col-md-3">
-      <span class="text-secondary">Started</span>
-      <div class="fw-semibold">{{ stage.started_at|default:"—" }}</div>
-    </div>
-    <div class="col-6 col-md-3">
-      <span class="text-secondary">Finished</span>
-      <div class="fw-semibold">{{ stage.finished_at|default:"—" }}</div>
+    <div class="col-md-6">
+      <div class="pipeline-time-card">
+        <div class="pipeline-time-label">Finished</div>
+        <div class="pipeline-time-value">
+          {% if overview.finished_at %}{{ overview.finished_at|date:"M j, g:i A" }}{% else %}—{% endif %}
+        </div>
+      </div>
     </div>
   </div>
-  {% if stage.error %}
-  <div class="alert alert-danger py-2 small mt-3 mb-0">
-    <strong>Error:</strong> {{ stage.error }}
+
+  <div
+    class="pipeline-progress-bar mb-4"
+    role="progressbar"
+    aria-valuenow="{{ overview.progress_percent }}"
+    aria-valuemin="0"
+    aria-valuemax="100"
+  >
+    <div
+      class="pipeline-progress-fill pipeline-progress-fill-{{ overview.overall_status|lower }}"
+      style="width: {{ overview.progress_percent }}%;"
+    ></div>
+    <span class="pipeline-progress-label">{{ overview.progress_percent }}%</span>
   </div>
-  {% endif %}
+
+  <div class="row g-3 mb-4">
+    {% for metric in overview.metrics %}
+    <div class="col-6 col-md">
+      <div class="pipeline-metric-card">
+        <div class="pipeline-metric-label">{{ metric.label }}</div>
+        <div class="pipeline-metric-value">{{ metric.value }}</div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="row g-3">
+    {% for stage in stages %}
+    <div class="col-md-6 col-lg-4">
+      <div class="pipeline-step-card">
+        <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+          <div>
+            <div class="pipeline-step-title">{{ stage.name }}</div>
+            <div class="pipeline-step-duration">{{ stage.duration_label }}</div>
+          </div>
+          <span class="badge pipeline-status-badge pipeline-status-{{ stage.display_status|lower }}">
+            {{ stage.display_status }}
+          </span>
+        </div>
+        <p class="pipeline-step-description mb-3">{{ stage.description }}</p>
+        {% if stage.error %}
+        <div class="alert alert-danger py-2 small mb-3">{{ stage.error }}</div>
+        {% endif %}
+        <div class="pipeline-step-footer">
+          Items: {% if stage.items_count is not None %}{{ stage.items_count }}{% else %}—{% endif %}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
 </div>
-{% if not forloop.last %}<div class="ops-pipeline-arrow"><i class="bi bi-arrow-down"></i></div>{% endif %}
-{% endfor %}
 {% endblock %}

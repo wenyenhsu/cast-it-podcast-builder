@@ -1,0 +1,86 @@
+<div class="card p-4 mb-4">
+  <form method="get" class="row g-2 align-items-end">
+    <input type="hidden" name="view" value="fail-log">
+    <div class="col-12 col-md-3">
+      <label class="form-label small text-secondary">Search</label>
+      <input type="text" name="q" class="form-control" placeholder="Search errors" value="{{ fail_log_filters.q }}">
+    </div>
+    <div class="col-6 col-md-2">
+      <label class="form-label small text-secondary">Job ID</label>
+      <input type="text" name="job_id" class="form-control" placeholder="Job ID" value="{{ fail_log_filters.job_id }}">
+    </div>
+    <div class="col-6 col-md-2">
+      <label class="form-label small text-secondary">Episode ID</label>
+      <input type="text" name="episode_id" class="form-control" placeholder="Episode ID" value="{{ fail_log_filters.episode_id }}">
+    </div>
+    <div class="col-6 col-md-2">
+      <label class="form-label small text-secondary">Severity</label>
+      <select name="severity" class="form-select">
+        <option value="">Errors &amp; warnings</option>
+        <option value="ERROR" {% if fail_log_filters.severity == "ERROR" %}selected{% endif %}>ERROR</option>
+        <option value="WARNING" {% if fail_log_filters.severity == "WARNING" %}selected{% endif %}>WARNING</option>
+        <option value="CRITICAL" {% if fail_log_filters.severity == "CRITICAL" %}selected{% endif %}>CRITICAL</option>
+      </select>
+    </div>
+    <div class="col-6 col-md-2">
+      <button type="submit" class="btn btn-primary w-100">
+        <i class="bi bi-funnel me-1"></i>Filter
+      </button>
+    </div>
+    <div class="col-6 col-md-1">
+      <a class="btn btn-outline-secondary w-100" href="{% url 'operations:content' %}?view=fail-log">Reset</a>
+    </div>
+  </form>
+  <p class="text-secondary small mt-3 mb-0">
+    Failed background jobs and operational error events from the database.
+  </p>
+</div>
+
+<div class="card p-4">
+  <div class="table-responsive">
+    <table class="ops-table">
+      <thead>
+        <tr>
+          <th>Timestamp</th>
+          <th>Severity</th>
+          <th>Event</th>
+          <th>Message</th>
+          <th>Job</th>
+          <th>Episode</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for entry in fail_log_entries %}
+        <tr>
+          <td class="text-secondary text-nowrap small">{{ entry.timestamp }}</td>
+          <td>
+            <span class="badge {% if entry.severity == 'ERROR' or entry.severity == 'CRITICAL' %}text-bg-danger{% elif entry.severity == 'WARNING' %}text-bg-warning text-dark{% else %}text-bg-secondary{% endif %}">
+              {{ entry.severity }}
+            </span>
+          </td>
+          <td class="fw-semibold small">{{ entry.event }}</td>
+          <td class="small">{{ entry.message|truncatechars:160 }}</td>
+          <td class="text-secondary font-monospace small">
+            {% if entry.job_id %}
+            <a href="{% url 'admin:scheduler_job_change' entry.job_id %}">{{ entry.job_id|truncatechars:13 }}</a>
+            {% else %}
+            —
+            {% endif %}
+          </td>
+          <td class="text-secondary font-monospace small">
+            {% if entry.episode_id %}
+            <a href="{% url 'operations:episode_pipeline' entry.episode_id %}">{{ entry.episode_id|truncatechars:13 }}</a>
+            {% else %}
+            —
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" class="empty-state">No failure logs found.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>

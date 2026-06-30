@@ -1,11 +1,21 @@
 """Job dispatch helpers for Django Admin actions."""
 
+import logging
 from typing import Any
 
 from api.v1.services.job_dispatch import ApiJobDispatchService
 from apps.scheduler.models import Job, JobType
 from apps.scheduler.tasks.registry import get_task_for_job_type
 from services.jobs.job_service import JobService
+
+logger = logging.getLogger(__name__)
+
+
+def _json_safe_payload(payload: dict[str, Any] | None) -> dict[str, Any]:
+    """Coerce payload values to JSON-serializable primitives."""
+    if not payload:
+        return {}
+    return {key: str(value) for key, value in payload.items() if value is not None}
 
 
 class AdminJobDispatchService:
@@ -20,7 +30,7 @@ class AdminJobDispatchService:
         self._jobs = job_service or JobService()
 
     def enqueue(self, job_type: str, payload: dict[str, Any] | None = None) -> Job:
-        return self._dispatch.dispatch(job_type, payload)
+        return self._dispatch.dispatch(job_type, _json_safe_payload(payload))
 
     def import_news(self, *, source_id: str | None = None) -> Job:
         payload: dict[str, Any] = {}
@@ -59,9 +69,14 @@ class AdminJobDispatchService:
         self,
         episode_id: str,
         *,
+        script_id: str | None = None,
         audio_asset_id: str | None = None,
     ) -> Job:
-        payload: dict[str, str] = {"episode_id": episode_id}
+        payload: dict[str, str] = {}
+        if script_id:
+            payload["script_id"] = script_id
+        else:
+            payload["episode_id"] = episode_id
         if audio_asset_id:
             payload["audio_asset_id"] = audio_asset_id
         return self.enqueue(JobType.GENERATE_AUDIO, payload)
