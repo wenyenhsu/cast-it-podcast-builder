@@ -1,0 +1,40 @@
+{% extends "operations/base.html" %}
+
+{% block title %}{{ title }} | Cast It{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between gap-3 align-items-md-center mb-4">
+  <div>
+    <h1 class="h3 mb-1">{{ title }}</h1>
+    <p class="text-secondary mb-0">Component-level health across the platform stack.</p>
+  </div>
+  <a href="?" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+  </a>
+</div>
+
+<div class="card p-4">
+  <div class="table-responsive">
+    <table class="ops-table">
+      <thead>
+        <tr><th>Component</th><th>Status</th><th>Detail</th></tr>
+      </thead>
+      <tbody>
+        {% for component in components %}
+        <tr>
+          <td class="fw-semibold">{{ component.name }}</td>
+          <td>
+            <span class="badge {% if component.status == 'healthy' %}text-bg-success{% elif component.status == 'degraded' %}text-bg-warning{% elif component.status == 'unhealthy' %}text-bg-danger{% else %}text-bg-secondary{% endif %}">
+              {{ component.status|title }}
+            </span>
+          </td>
+          <td class="text-secondary">{{ component.detail }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="3" class="empty-state">No health data available.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

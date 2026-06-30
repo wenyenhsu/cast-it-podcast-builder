@@ -1,0 +1,89 @@
+{% extends "operations/base.html" %}
+
+{% block title %}{{ title }} | Cast It{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between gap-3 align-items-md-center mb-4">
+  <div>
+    <h1 class="h3 mb-1">{{ title }}</h1>
+    <p class="text-secondary mb-0">Search operational events across jobs and episodes.</p>
+  </div>
+</div>
+
+<div class="card p-4 mb-4">
+  <form method="get" class="row g-2 align-items-end">
+    <div class="col-12 col-md-3">
+      <label class="form-label small text-secondary">Search</label>
+      <input type="text" name="q" class="form-control" placeholder="Search" value="{{ filters.q }}">
+    </div>
+    <div class="col-6 col-md-2">
+      <label class="form-label small text-secondary">Job ID</label>
+      <input type="text" name="job_id" class="form-control" placeholder="Job ID" value="{{ filters.job_id }}">
+    </div>
+    <div class="col-6 col-md-2">
+      <label class="form-label small text-secondary">Episode ID</label>
+      <input type="text" name="episode_id" class="form-control" placeholder="Episode ID" value="{{ filters.episode_id }}">
+    </div>
+    <div class="col-6 col-md-2">
+      <label class="form-label small text-secondary">Provider</label>
+      <input type="text" name="provider" class="form-control" placeholder="Provider" value="{{ filters.provider }}">
+    </div>
+    <div class="col-6 col-md-2">
+      <label class="form-label small text-secondary">Severity</label>
+      <select name="severity" class="form-select">
+        <option value="">All severities</option>
+        <option value="INFO" {% if filters.severity == "INFO" %}selected{% endif %}>INFO</option>
+        <option value="WARNING" {% if filters.severity == "WARNING" %}selected{% endif %}>WARNING</option>
+        <option value="ERROR" {% if filters.severity == "ERROR" %}selected{% endif %}>ERROR</option>
+      </select>
+    </div>
+    <div class="col-12 col-md-1">
+      <button type="submit" class="btn btn-primary w-100">
+        <i class="bi bi-funnel me-1"></i>Filter
+      </button>
+    </div>
+  </form>
+  <p class="text-secondary small mt-3 mb-0">
+    Log storage integration point. Connect a backend to <code>LogQueryService</code> for live data.
+  </p>
+</div>
+
+<div class="card p-4">
+  <div class="table-responsive">
+    <table class="ops-table">
+      <thead>
+        <tr>
+          <th>Timestamp</th>
+          <th>Severity</th>
+          <th>Event</th>
+          <th>Message</th>
+          <th>Job</th>
+          <th>Episode</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for entry in entries %}
+        <tr>
+          <td class="text-secondary text-nowrap">{{ entry.timestamp }}</td>
+          <td>
+            <span class="badge {% if entry.severity == 'ERROR' %}text-bg-danger{% elif entry.severity == 'WARNING' %}text-bg-warning{% else %}text-bg-secondary{% endif %}">
+              {{ entry.severity }}
+            </span>
+          </td>
+          <td class="fw-semibold">{{ entry.event }}</td>
+          <td>{{ entry.message }}</td>
+          <td class="text-secondary">{{ entry.job_id|default:"—" }}</td>
+          <td class="text-secondary">{{ entry.episode_id|default:"—" }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" class="empty-state">
+            No log entries found. Configure a log backend to populate this view.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,49 @@
+{% extends "operations/base.html" %}
+
+{% block title %}{{ title }} | Cast It{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between gap-3 align-items-md-center mb-4">
+  <div>
+    <h1 class="h3 mb-1">{{ title }}</h1>
+    <p class="text-secondary mb-0">
+      Episode <strong>{{ episode.title }}</strong>
+      <span class="badge text-bg-light border ms-1">{{ episode.status }}</span>
+    </p>
+  </div>
+  <a class="btn btn-outline-secondary btn-sm" href="{% url 'admin:episodes_episode_change' episode.pk %}">
+    <i class="bi bi-pencil me-1"></i>Edit in Admin
+  </a>
+</div>
+
+{% for stage in stages %}
+<div class="ops-pipeline-stage">
+  <div class="d-flex justify-content-between align-items-start gap-3 mb-2">
+    <h3 class="h5 mb-0">{{ stage.name }}</h3>
+    <span class="badge {% if stage.status == 'completed' %}text-bg-success{% elif stage.status == 'failed' %}text-bg-danger{% elif stage.status == 'running' %}text-bg-primary{% else %}text-bg-secondary{% endif %}">
+      {{ stage.status|title }}
+    </span>
+  </div>
+  <div class="row g-2 small">
+    <div class="col-6 col-md-3">
+      <span class="text-secondary">Duration</span>
+      <div class="fw-semibold">{{ stage.duration_seconds|default:"—" }} s</div>
+    </div>
+    <div class="col-6 col-md-3">
+      <span class="text-secondary">Started</span>
+      <div class="fw-semibold">{{ stage.started_at|default:"—" }}</div>
+    </div>
+    <div class="col-6 col-md-3">
+      <span class="text-secondary">Finished</span>
+      <div class="fw-semibold">{{ stage.finished_at|default:"—" }}</div>
+    </div>
+  </div>
+  {% if stage.error %}
+  <div class="alert alert-danger py-2 small mt-3 mb-0">
+    <strong>Error:</strong> {{ stage.error }}
+  </div>
+  {% endif %}
+</div>
+{% if not forloop.last %}<div class="ops-pipeline-arrow"><i class="bi bi-arrow-down"></i></div>{% endif %}
+{% endfor %}
+{% endblock %}

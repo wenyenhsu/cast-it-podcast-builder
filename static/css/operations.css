@@ -1,0 +1,153 @@
+:root {
+  --cast-surface: #f5f7fb;
+  --cast-card-radius: 1.25rem;
+  --cast-shadow: 0 0.5rem 1.5rem rgba(15, 23, 42, 0.06);
+}
+
+body {
+  background: var(--cast-surface);
+}
+
+.navbar {
+  backdrop-filter: blur(8px);
+}
+
+.navbar .nav-link.active {
+  font-weight: 600;
+}
+
+.cast-brand-icon {
+  display: inline-flex;
+  width: 2.75rem;
+  height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  font-size: 1.25rem;
+}
+
+.card {
+  border: 0;
+  border-radius: var(--cast-card-radius);
+  box-shadow: var(--cast-shadow);
+}
+
+.stat-label {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+
+.stat-value {
+  font-size: clamp(1.75rem, 3vw, 2.5rem);
+  font-weight: 800;
+  line-height: 1;
+  margin-top: 0.35rem;
+}
+
+.insight-icon {
+  display: inline-flex;
+  width: 2.25rem;
+  height: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #4338ca;
+}
+
+.ops-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0;
+}
+
+.ops-table th,
+.ops-table td {
+  border-bottom: 1px solid #e2e8f0;
+  padding: 0.85rem 0.75rem;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.ops-table thead th {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+  border-bottom-width: 2px;
+}
+
+.ops-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.ops-link-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.15rem;
+  border-radius: 1rem;
+  background: #fff;
+  box-shadow: var(--cast-shadow);
+  color: #0f172a;
+  text-decoration: none;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.ops-link-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0.75rem 2rem rgba(15, 23, 42, 0.1);
+  color: #0d6efd;
+}
+
+.ops-link-card .ops-link-icon {
+  display: inline-flex;
+  width: 2.5rem;
+  height: 2.5rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.75rem;
+  background: #eff6ff;
+  color: #2563eb;
+  font-size: 1.1rem;
+}
+
+.ops-pipeline-stage {
+  border-left: 4px solid #0d6efd;
+  padding: 1rem 1.25rem;
+  margin-bottom: 0.75rem;
+  background: #fff;
+  border-radius: 0 1rem 1rem 0;
+  box-shadow: var(--cast-shadow);
+}
+
+.ops-pipeline-arrow {
+  text-align: center;
+  color: #94a3b8;
+  margin: 0.25rem 0;
+}
+
+.form-control,
+.form-select {
+  border-radius: 0.9rem;
+  padding: 0.65rem 0.9rem;
+}
+
+.form-control:focus,
+.form-select:focus {
+  box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.12);
+}
+
+.empty-state {
+  padding: 2rem;
+  text-align: center;
+  color: #64748b;
+}
+
+.table > :not(caption) > * > * {
+  padding-top: 0.85rem;
+  padding-bottom: 0.85rem;
+}

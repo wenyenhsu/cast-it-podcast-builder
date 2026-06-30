@@ -1,4 +1,4 @@
-"""Tests for admin dashboard statistics and operations views."""
+"""Tests for the standalone operations dashboard."""
 
 import pytest
 from django.urls import reverse
@@ -31,21 +31,22 @@ def test_dashboard_stats_overview(news_source: NewsSource) -> None:
 
 
 @pytest.mark.django_db
-def test_admin_index_renders_dashboard(admin_client) -> None:
-    response = admin_client.get(reverse("admin:index"))
+def test_operations_dashboard_renders(admin_client) -> None:
+    response = admin_client.get(reverse("operations:dashboard"))
     assert response.status_code == 200
     content = response.content.decode()
-    assert "Operations Overview" in content
+    assert "Dashboard" in content
     assert "Total Articles" in content
+    assert "Model administration" not in content
 
 
 @pytest.mark.django_db
 def test_operations_views_load(admin_client) -> None:
     views = [
-        "admin:operations_providers",
-        "admin:operations_health",
-        "admin:operations_metrics",
-        "admin:operations_logs",
+        "operations:providers",
+        "operations:health",
+        "operations:metrics",
+        "operations:logs",
     ]
     for view_name in views:
         response = admin_client.get(reverse(view_name))
@@ -65,7 +66,7 @@ def test_episode_pipeline_view(admin_client, news_source: NewsSource) -> None:
         content_hash="pipeline-hash",
         status=ArticleStatus.COLLECTED,
     )
-    url = reverse("admin:operations_episode_pipeline", args=[episode.pk])
+    url = reverse("operations:episode_pipeline", args=[episode.pk])
     response = admin_client.get(url)
     assert response.status_code == 200
     content = response.content.decode()
@@ -74,12 +75,21 @@ def test_episode_pipeline_view(admin_client, news_source: NewsSource) -> None:
 
 
 @pytest.mark.django_db
-def test_non_staff_cannot_access_admin(db) -> None:
+def test_non_staff_cannot_access_operations_dashboard(db) -> None:
     from django.contrib.auth.models import User
     from django.test import Client
 
     user = User.objects.create_user(username="regular", password="pass")
     client = Client()
     client.force_login(user)
-    response = client.get(reverse("admin:index"))
+    response = client.get(reverse("operations:dashboard"))
     assert response.status_code == 302
+    assert "/accounts/login/" in response.url
+
+
+@pytest.mark.django_db
+def test_admin_index_is_separate(admin_client) -> None:
+    response = admin_client.get(reverse("admin:index"))
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert "Operations Overview" not in content

@@ -1,1 +1,1 @@
-"""Django Admin customization for the operations console."""
+"""Django Admin customization."""

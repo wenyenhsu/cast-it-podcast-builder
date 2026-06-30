@@ -1,0 +1,62 @@
+{% extends "operations/base.html" %}
+
+{% block title %}{{ title }} | Cast It{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between gap-3 align-items-md-center mb-4">
+  <div>
+    <h1 class="h3 mb-1">{{ title }}</h1>
+    <p class="text-secondary mb-0">External provider health, response times, and model status.</p>
+  </div>
+  <form method="post" class="m-0">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-primary">
+      <i class="bi bi-arrow-repeat me-1"></i>Run Health Checks
+    </button>
+  </form>
+</div>
+
+{% if message %}
+<div class="alert alert-success alert-dismissible fade show" role="alert">
+  {{ message }}
+  <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+{% endif %}
+
+<div class="card p-4">
+  <div class="table-responsive">
+    <table class="ops-table">
+      <thead>
+        <tr>
+          <th>Provider</th>
+          <th>Health</th>
+          <th>Response Time</th>
+          <th>Last Check</th>
+          <th>Version</th>
+          <th>Active Model</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for provider in providers %}
+        <tr>
+          <td class="fw-semibold">{{ provider.name }}</td>
+          <td>
+            <span class="badge {% if provider.health == 'healthy' %}text-bg-success{% elif provider.health == 'degraded' %}text-bg-warning{% elif provider.health == 'unhealthy' %}text-bg-danger{% else %}text-bg-secondary{% endif %}">
+              {{ provider.health|title }}
+            </span>
+          </td>
+          <td>{% if provider.response_time_ms %}{{ provider.response_time_ms }} ms{% else %}—{% endif %}</td>
+          <td class="text-secondary">{{ provider.last_check|default:"—" }}</td>
+          <td>{{ provider.version|default:"—" }}</td>
+          <td>{{ provider.active_model|default:"—" }}</td>
+          <td class="text-secondary">{{ provider.note|default:"—" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="empty-state">No providers configured.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

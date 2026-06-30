@@ -45,6 +45,7 @@ Cast It is running.
   API base:   ${BASE_URL}/api/v1/
   Health:     ${BASE_URL}/api/v1/health/live/
   API docs:   ${BASE_URL}/api/v1/docs/
+  Dashboard:  ${BASE_URL}/
   Admin:      ${BASE_URL}/admin/
   Version:    ${BASE_URL}/api/v1/version/
 

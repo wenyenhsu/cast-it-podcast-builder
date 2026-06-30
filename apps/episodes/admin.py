@@ -88,7 +88,7 @@ class EpisodeAdmin(AdminActionMixin, admin.ModelAdmin):
 
     @admin.display(description="Pipeline")
     def pipeline_link(self, obj: Episode) -> str:
-        url = reverse("admin:operations_episode_pipeline", args=[obj.pk])
+        url = reverse("operations:episode_pipeline", args=[obj.pk])
         return format_html('<a href="{}">View Pipeline</a>', url)
 
     @admin.action(description="Generate script for selected episodes")

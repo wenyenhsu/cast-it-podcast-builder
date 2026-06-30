@@ -1,0 +1,104 @@
+{% extends "operations/base.html" %}
+
+{% block title %}{{ title }} | Cast It{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between gap-3 align-items-md-center mb-4">
+  <div>
+    <h1 class="h3 mb-1">{{ title }}</h1>
+    <p class="text-secondary mb-0">Pipeline performance over the last {{ metrics.period_days }} days.</p>
+  </div>
+  <div class="btn-group" role="group" aria-label="Period selector">
+    <a class="btn btn-sm {% if days == 7 %}btn-primary{% else %}btn-outline-secondary{% endif %}" href="?days=7">7d</a>
+    <a class="btn btn-sm {% if days == 14 %}btn-primary{% else %}btn-outline-secondary{% endif %}" href="?days=14">14d</a>
+    <a class="btn btn-sm {% if days == 30 %}btn-primary{% else %}btn-outline-secondary{% endif %}" href="?days=30">30d</a>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg">
+    <div class="card p-3 h-100">
+      <div class="stat-label text-secondary">Avg Script Gen</div>
+      <div class="h4 fw-bold mb-0">{{ metrics.average_script_generation_seconds|default:"—" }}<small class="text-secondary fs-6"> s</small></div>
+    </div>
+  </div>
+  <div class="col-6 col-lg">
+    <div class="card p-3 h-100">
+      <div class="stat-label text-secondary">Avg Audio Gen</div>
+      <div class="h4 fw-bold mb-0">{{ metrics.average_audio_generation_seconds|default:"—" }}<small class="text-secondary fs-6"> s</small></div>
+    </div>
+  </div>
+  <div class="col-6 col-lg">
+    <div class="card p-3 h-100">
+      <div class="stat-label text-secondary">Avg Publish</div>
+      <div class="h4 fw-bold mb-0">{{ metrics.average_publish_seconds|default:"—" }}<small class="text-secondary fs-6"> s</small></div>
+    </div>
+  </div>
+  <div class="col-6 col-lg">
+    <div class="card p-3 h-100">
+      <div class="stat-label text-secondary">Failure Rate</div>
+      <div class="h4 fw-bold mb-0 {% if metrics.failure_rate_percent > 5 %}text-danger{% endif %}">{{ metrics.failure_rate_percent }}%</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg">
+    <div class="card p-3 h-100">
+      <div class="stat-label text-secondary">Retry Rate</div>
+      <div class="h4 fw-bold mb-0">{{ metrics.retry_rate_percent }}%</div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-12 col-lg-6">
+    <div class="card p-4 h-100">
+      <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+        <div>
+          <h2 class="h5 mb-1">Articles Imported Per Day</h2>
+          <p class="text-secondary small mb-0">Daily ingestion volume.</p>
+        </div>
+        <span class="insight-icon"><i class="bi bi-newspaper"></i></span>
+      </div>
+      {% if metrics.articles_imported_per_day %}
+      <div class="table-responsive">
+        <table class="ops-table">
+          <thead><tr><th>Date</th><th>Count</th></tr></thead>
+          <tbody>
+            {% for row in metrics.articles_imported_per_day %}
+            <tr><td>{{ row.date }}</td><td class="fw-semibold">{{ row.count }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="empty-state">No data</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-6">
+    <div class="card p-4 h-100">
+      <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+        <div>
+          <h2 class="h5 mb-1">Episodes Published Per Day</h2>
+          <p class="text-secondary small mb-0">Daily publish output.</p>
+        </div>
+        <span class="insight-icon"><i class="bi bi-broadcast"></i></span>
+      </div>
+      {% if metrics.episodes_published_per_day %}
+      <div class="table-responsive">
+        <table class="ops-table">
+          <thead><tr><th>Date</th><th>Count</th></tr></thead>
+          <tbody>
+            {% for row in metrics.episodes_published_per_day %}
+            <tr><td>{{ row.date }}</td><td class="fw-semibold">{{ row.count }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="empty-state">No data</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
