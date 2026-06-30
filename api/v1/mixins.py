@@ -5,7 +5,11 @@ from typing import Any
 
 from rest_framework.request import Request
 
+from infrastructure.observability.context import context_as_log_extra
+from services.observability.logging_service import StructuredLogService
+
 logger = logging.getLogger(__name__)
+_structured = StructuredLogService()
 
 
 class RequestLoggingMixin:
@@ -15,14 +19,13 @@ class RequestLoggingMixin:
 
     def initial(self, request: Request, *args: Any, **kwargs: Any) -> None:
         super().initial(request, *args, **kwargs)
-        logger.info(
+        _structured.info(
             "API endpoint hit",
-            extra={
-                "event": "api_endpoint_hit",
-                "resource": self.resource_name,
-                "method": request.method,
-                "path": request.path,
-            },
+            event="api_endpoint_hit",
+            resource=self.resource_name,
+            method=request.method,
+            path=request.path,
+            **context_as_log_extra(),
         )
 
     def log_action(
@@ -34,9 +37,9 @@ class RequestLoggingMixin:
         status_code: int | None = None,
     ) -> None:
         extra: dict[str, Any] = {
-            "event": "api_action",
             "resource": self.resource_name,
             "action": action,
+            **context_as_log_extra(),
         }
         if resource_id:
             extra["resource_id"] = resource_id
@@ -44,4 +47,4 @@ class RequestLoggingMixin:
             extra["job_id"] = job_id
         if status_code:
             extra["status_code"] = status_code
-        logger.info("API action requested", extra=extra)
+        _structured.info("API action requested", event="api_action", **extra)

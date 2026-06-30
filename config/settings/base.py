@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     "apps.providers",
     "apps.knowledge",
     "apps.workflow",
+    "apps.observability",
 ]
 
 MIDDLEWARE = [
@@ -53,6 +54,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "apps.observability.middleware.ObservabilityMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -195,6 +197,21 @@ SPECTACULAR_SETTINGS = {
 }
 
 # Logging
+OBSERVABILITY_LOG_LEVEL = env("LOG_LEVEL", default="INFO")
+OBSERVABILITY_LOG_FORMAT = env("LOG_FORMAT", default="json")
+OBSERVABILITY_SERVICE_NAME = env("SERVICE_NAME", default="cast-it")
+OBSERVABILITY_ENVIRONMENT = env("ENVIRONMENT", default="development")
+OBSERVABILITY_ENABLE_METRICS = env.bool("ENABLE_METRICS", default=True)
+OBSERVABILITY_ENABLE_TRACING = env.bool("ENABLE_TRACING", default=True)
+OBSERVABILITY_ENABLE_HEALTH_ENDPOINTS = env.bool("ENABLE_HEALTH_ENDPOINTS", default=True)
+OBSERVABILITY_REQUEST_ID_HEADER = env("REQUEST_ID_HEADER", default="X-Request-ID")
+OBSERVABILITY_CORRELATION_ID_HEADER = env(
+    "CORRELATION_ID_HEADER",
+    default="X-Correlation-ID",
+)
+OBSERVABILITY_METRICS_BACKEND = env("METRICS_BACKEND", default="memory")
+OBSERVABILITY_TRACING_BACKEND = env("TRACING_BACKEND", default="memory")
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -203,16 +220,38 @@ LOGGING = {
             "format": "{levelname} {asctime} {module} {message}",
             "style": "{",
         },
+        "json": {
+            "()": "infrastructure.observability.logging.StructuredJsonFormatter",
+            "service_name": OBSERVABILITY_SERVICE_NAME,
+            "environment": OBSERVABILITY_ENVIRONMENT,
+        },
+    },
+    "filters": {
+        "observability_context": {
+            "()": "infrastructure.observability.logging.StructuredContextFilter",
+            "service_name": OBSERVABILITY_SERVICE_NAME,
+            "environment": OBSERVABILITY_ENVIRONMENT,
+        },
     },
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
-            "formatter": "verbose",
+            "formatter": "json"
+            if OBSERVABILITY_LOG_FORMAT.lower() == "json"
+            else "verbose",
+            "filters": ["observability_context"],
         },
     },
     "root": {
         "handlers": ["console"],
-        "level": "INFO",
+        "level": OBSERVABILITY_LOG_LEVEL,
+    },
+    "loggers": {
+        "cast_it.observability": {
+            "handlers": ["console"],
+            "level": OBSERVABILITY_LOG_LEVEL,
+            "propagate": False,
+        },
     },
 }
 
