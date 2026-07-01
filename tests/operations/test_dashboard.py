@@ -267,14 +267,11 @@ def test_dashboard_stats_list_methods(news_source: NewsSource) -> None:
 
     service = DashboardStatsService()
     failed = service.list_failed_jobs()
-    waiting = service.list_episodes_waiting_for_audio()
     today = service.list_episodes_today()
 
     assert len(failed) == 1
     assert failed[0]["error_message"] == "LLM timeout"
     assert failed[0]["episode_id"] == str(episode.id)
-    assert len(waiting) == 1
-    assert waiting[0]["title"] == "Waiting Episode"
     assert len(today) >= 2
 
 
@@ -308,13 +305,7 @@ def test_content_pipeline_views(admin_client) -> None:
     today = admin_client.get(reverse("operations:content"), {"view": "episodes-today"})
     assert today.status_code == 200
     assert "Today Ep" in today.content.decode()
-
-    waiting = admin_client.get(
-        reverse("operations:content"),
-        {"view": "waiting-for-audio"},
-    )
-    assert waiting.status_code == 200
-    assert "Audio Ep" in waiting.content.decode()
+    assert "Audio Ep" in today.content.decode()
 
     fail_log = admin_client.get(reverse("operations:content"), {"view": "fail-log"})
     assert fail_log.status_code == 200
@@ -327,4 +318,3 @@ def test_dashboard_stat_cards_link_to_content(admin_client) -> None:
     content = response.content.decode()
     assert "view=failed-jobs" in content
     assert "view=episodes-today" in content
-    assert "view=waiting-for-audio" in content

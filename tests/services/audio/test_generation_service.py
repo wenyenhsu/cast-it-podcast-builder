@@ -57,7 +57,7 @@ def test_generate_for_script_creates_assets(
     assert (tmp_path / asset.file_path).exists()
 
     ready_script.episode.refresh_from_db()
-    assert ready_script.episode.status == EpisodeStatus.GENERATING_AUDIO
+    assert ready_script.episode.status == EpisodeStatus.DRAFT
 
 
 def test_generate_for_script_requires_ready_status(

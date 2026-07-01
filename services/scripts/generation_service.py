@@ -24,6 +24,13 @@ from services.scripts.validation_service import (
 )
 from services.scripts.version_service import ScriptVersionService
 from services.jobs.job_service import JobService
+from services.episodes.status_sync import sync_episode_idle_status
+from services.knowledge.script_rag import ScriptRagResult, ScriptRagService
+from services.episodes.title import (
+    apply_episode_name,
+    is_placeholder_episode_title,
+    normalize_episode_name,
+)
 
 if TYPE_CHECKING:
     from services.llm.service import LLMService
@@ -51,6 +58,7 @@ class ScriptGenerationService:
         validation_service: ScriptValidationService | None = None,
         version_service: ScriptVersionService | None = None,
         config: ScriptGenerationConfig | None = None,
+        script_rag_service: ScriptRagService | None = None,
     ) -> None:
         self._llm = llm_service
         self._config = config or ScriptGenerationConfig()
@@ -61,7 +69,9 @@ class ScriptGenerationService:
             config=self._config.validation_config or ScriptValidationConfig()
         )
         self._version_service = version_service or ScriptVersionService()
+        self._script_rag = script_rag_service or ScriptRagService()
         self._last_token_usage: dict[str, int] = {}
+        self._last_rag_result: ScriptRagResult | None = None
 
     def generate(self, episode: Episode, *, job: Job | None = None) -> Script:
         """Generate a new script version for the given episode."""
@@ -99,8 +109,10 @@ class ScriptGenerationService:
         episode.status = EpisodeStatus.GENERATING_SCRIPT
         episode.save(update_fields=["status", "updated_at"])
 
-        script = self._version_service.create_version_placeholder(
-            episode.id,
+        script = self._resolve_or_create_script(
+            episode,
+            job=job,
+            job_service=job_service,
             llm_provider=provider,
             model_name=model_name,
             prompt_version=prompt_version,
@@ -108,8 +120,11 @@ class ScriptGenerationService:
         _progress(25)
 
         try:
+            _progress(30)
+            rag_result = self._script_rag.enrich(episode, articles)
+            self._last_rag_result = rag_result
             _progress(35)
-            parsed = self._call_llm(episode, articles)
+            parsed = self._call_llm(episode, articles, rag_result=rag_result)
             _progress(70)
             validation = self._validation.validate(parsed)
             _progress(85)
@@ -150,16 +165,70 @@ class ScriptGenerationService:
         )
         return script
 
+    def _resolve_or_create_script(
+        self,
+        episode: Episode,
+        *,
+        job: Job | None,
+        job_service: JobService,
+        llm_provider: str,
+        model_name: str,
+        prompt_version: str,
+    ) -> Script:
+        """Reuse the job's script on retry; create a new version for fresh runs."""
+        if job is not None:
+            script_id = job.payload.get("script_id")
+            if not script_id:
+                legacy = (
+                    Script.objects.filter(
+                        episode_id=episode.id,
+                        status__in=[ScriptStatus.FAILED, ScriptStatus.GENERATING],
+                        created_at__gte=job.created_at,
+                    )
+                    .order_by("version")
+                    .first()
+                )
+                if legacy is not None and legacy.segments.count() == 0:
+                    script_id = str(legacy.id)
+                    job_service.merge_payload(job, script_id=script_id)
+
+            if script_id:
+                existing = Script.objects.filter(
+                    pk=script_id,
+                    episode_id=episode.id,
+                    status__in=[ScriptStatus.FAILED, ScriptStatus.GENERATING],
+                ).first()
+                if existing is not None:
+                    return self._version_service.reset_placeholder_for_retry(
+                        existing,
+                        llm_provider=llm_provider,
+                        model_name=model_name,
+                        prompt_version=prompt_version,
+                    )
+
+        script = self._version_service.create_version_placeholder(
+            episode.id,
+            llm_provider=llm_provider,
+            model_name=model_name,
+            prompt_version=prompt_version,
+        )
+        if job is not None:
+            job_service.merge_payload(job, script_id=str(script.id))
+        return script
+
     def _call_llm(
         self,
         episode: Episode,
         articles: list[Article],
+        *,
+        rag_result: ScriptRagResult | None = None,
     ) -> PodcastScriptSchema:
         system_prompt = self._prompt_builder.build_system_prompt()
         user_prompt = self._prompt_builder.build_user_prompt(
             episode_title=episode.title,
             episode_summary=episode.summary,
             articles=articles,
+            rag_context=rag_result.context_text if rag_result else "",
         )
 
         request = LLMRequest(
@@ -186,7 +255,19 @@ class ScriptGenerationService:
         validation: ScriptValidationResult,
         token_usage: dict[str, int],
     ) -> Script:
-        script.title = parsed.title
+        episode = script.episode
+        episode_updates: list[str] = []
+        if is_placeholder_episode_title(episode.title) or not episode.title.strip():
+            episode.title = parsed.title
+            episode_updates.append("title")
+        if parsed.summary and not episode.summary.strip():
+            episode.summary = parsed.summary
+            episode_updates.append("summary")
+        if episode_updates:
+            episode_updates.append("updated_at")
+            episode.save(update_fields=episode_updates)
+
+        script.title = ""
         script.status = ScriptStatus.READY
         script.validation_status = ValidationStatus.PASSED
         script.estimated_duration_seconds = validation.estimated_duration_seconds
@@ -239,6 +320,7 @@ class ScriptGenerationService:
             "warnings": validation.warnings,
             "segment_count": validation.segment_count,
             "estimated_duration_seconds": validation.estimated_duration_seconds,
+            "rag": _rag_metadata(self._last_rag_result),
         }
         metadata.generation_notes = parsed.summary
         metadata.save(
@@ -254,6 +336,7 @@ class ScriptGenerationService:
         if self._config.activate_on_success:
             self._version_service.activate_script(script)
 
+        sync_episode_idle_status(script.episode)
         return script
 
     def _mark_failed(self, script: Script, error_message: str) -> None:
@@ -266,8 +349,10 @@ class ScriptGenerationService:
             metadata.validation_results = {"passed": False, "errors": [error_message]}
             metadata.generation_notes = error_message
             metadata.save(
-                update_fields=["validation_results", "generation_notes"],
+                update_fields=["validation_results", "generation_notes", "updated_at"],
             )
+
+        sync_episode_idle_status(script.episode)
 
         logger.error(
             "Script generation failed",
@@ -277,3 +362,14 @@ class ScriptGenerationService:
                 "error": error_message,
             },
         )
+
+
+def _rag_metadata(rag_result: ScriptRagResult | None) -> dict[str, object]:
+    if rag_result is None:
+        return {"enabled": False, "chunks_used": 0}
+    return {
+        "enabled": rag_result.enabled,
+        "chunks_used": rag_result.chunks_used,
+        "articles_indexed": rag_result.articles_indexed,
+        "context_included": bool(rag_result.context_text),
+    }

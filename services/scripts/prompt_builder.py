@@ -70,9 +70,12 @@ class ScriptPromptBuilder:
         episode_title: str,
         episode_summary: str,
         articles: list[Article],
+        *,
+        rag_context: str = "",
     ) -> str:
         """Build the user prompt with escaped article content."""
         articles_block = self._format_articles(articles)
+        rag_context_block = self._format_rag_context(rag_context)
         output_schema = json.dumps(
             {
                 "title": "string",
@@ -105,6 +108,7 @@ class ScriptPromptBuilder:
                 "episode_title": self._escape(episode_title),
                 "episode_summary": self._escape(episode_summary),
                 "articles_block": articles_block,
+                "rag_context_block": rag_context_block,
                 "article_count": str(len(articles)),
                 "output_schema": output_schema,
                 "min_segments": str(self._config.min_segments),
@@ -137,6 +141,17 @@ class ScriptPromptBuilder:
             )
             blocks.append(block)
         return "\n\n".join(blocks)
+
+    def _format_rag_context(self, rag_context: str) -> str:
+        cleaned = rag_context.strip()
+        if not cleaned:
+            return ""
+        return (
+            "## Retrieved Knowledge (semantic search)\n"
+            "The following excerpts were retrieved from the knowledge base. "
+            "Treat them as supplemental reference material alongside the articles below.\n\n"
+            f"{self._escape(cleaned)}"
+        )
 
     @staticmethod
     def _escape(value: str) -> str:

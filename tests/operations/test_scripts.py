@@ -177,14 +177,14 @@ def test_tts_generation_for_episode(admin_client) -> None:
 
 
 @pytest.mark.django_db
-def test_waiting_for_audio_lists_generate_tts_button(admin_client) -> None:
+def test_episodes_today_lists_generate_tts_button(admin_client) -> None:
     episode = Episode.objects.create(
         title="Waiting Episode",
         status=EpisodeStatus.GENERATING_SCRIPT,
     )
     response = admin_client.get(
         reverse("operations:content"),
-        {"view": "waiting-for-audio"},
+        {"view": "episodes-today"},
     )
     content = response.content.decode()
     assert "Generate TTS" in content
@@ -203,6 +203,27 @@ def test_tts_generation_redirects_to_ready_script(admin_client) -> None:
     response = admin_client.get(reverse("operations:tts_generation"))
     assert response.status_code == 302
     assert response.url == reverse("operations:script_detail", args=[script.pk])
+
+
+@pytest.mark.django_db
+def test_delete_script_from_scripts_ui(admin_client) -> None:
+    episode = Episode.objects.create(title="Remove Me", status=EpisodeStatus.DRAFT)
+    script = Script.objects.create(
+        episode=episode,
+        version=2,
+        title="Failed attempt",
+        status=ScriptStatus.FAILED,
+    )
+    response = admin_client.post(
+        reverse("operations:scripts"),
+        {
+            "script_action": "delete_script",
+            "script_id": str(script.id),
+        },
+    )
+    assert response.status_code == 302
+    assert not Script.objects.filter(pk=script.id).exists()
+    assert Script.objects.filter(episode=episode).count() == 0
 
 
 @pytest.mark.django_db
@@ -227,8 +248,9 @@ def test_scripts_list_page(admin_client) -> None:
     )
     assert response.status_code == 200
     content = response.content.decode()
-    assert "Morning Brief" in content
-    assert "Open" in content
+    assert "Test Episode" in content
+    assert "Generate TTS" in content
+    assert "Delete" in content
 
 
 @pytest.mark.django_db

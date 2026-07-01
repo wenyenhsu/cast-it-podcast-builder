@@ -270,6 +270,7 @@ LLM_RETRY_COUNT = env.int("LLM_RETRY_COUNT", default=3)
 LLM_MAX_PROMPT_CHARS = env.int("LLM_MAX_PROMPT_CHARS", default=100_000)
 
 # RAG / Knowledge Base
+RAG_ENABLED = env.bool("RAG_ENABLED", default=True)
 RAG_TOP_K = env.int("RAG_TOP_K", default=10)
 RAG_SIMILARITY_THRESHOLD = env.float("RAG_SIMILARITY_THRESHOLD", default=0.7)
 RAG_MAX_CONTEXT_TOKENS = env.int("RAG_MAX_CONTEXT_TOKENS", default=4000)

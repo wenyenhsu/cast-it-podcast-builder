@@ -40,7 +40,6 @@ _CONTENT_VIEWS = frozenset(
         "scripts",
         "failed-jobs",
         "episodes-today",
-        "waiting-for-audio",
         "fail-log",
     }
 )
@@ -297,7 +296,6 @@ def _content_context(request: HttpRequest) -> dict[str, object]:
         "pipeline_stats": {
             "failed_jobs": overview["failed_jobs"],
             "episodes_today": overview["episodes_generated_today"],
-            "waiting_for_audio": overview["episodes_waiting_for_audio"],
             "scripts_total": overview["scripts_total"],
         },
         "articles": service.list_articles(provider_type=provider_type),
@@ -309,8 +307,6 @@ def _content_context(request: HttpRequest) -> dict[str, object]:
         context["failed_jobs"] = stats.list_failed_jobs()
     elif content_view == "episodes-today":
         context["episodes_today"] = stats.list_episodes_today()
-    elif content_view == "waiting-for-audio":
-        context["episodes_waiting_for_audio"] = stats.list_episodes_waiting_for_audio()
     elif content_view == "fail-log":
         log_service = LogQueryService()
         context["fail_log_entries"] = log_service.search(
@@ -335,6 +331,8 @@ def _scripts_tab_context(request: HttpRequest) -> dict[str, object]:
     form_defaults = manual_service.form_defaults()
     if request.method == "POST" and request.POST.get("script_action"):
         form_defaults = manual_service.form_defaults(dict(request.POST.items()))
+    elif episode is not None and not form_defaults.get("title"):
+        form_defaults = {**form_defaults, "title": episode.title}
     return {
         "scripts_episode_id": episode_id,
         "scripts_episode": episode,
@@ -467,8 +465,10 @@ def content(request: HttpRequest) -> HttpResponse:
             script_id = result.get("script_id")
             if script_id:
                 return redirect(reverse("operations:script_detail", args=[script_id]))
-            episode_id = request.POST.get("episode_id", "")
-            return redirect(_scripts_tab_url(episode_id=episode_id))
+            redirect_episode_id = result.get("episode_id") or request.POST.get(
+                "episode_id", ""
+            )
+            return redirect(_scripts_tab_url(episode_id=redirect_episode_id))
 
         result = _handle_content_post(request)
         if result.get("error"):
@@ -506,6 +506,22 @@ def _handle_scripts_post(request: HttpRequest) -> dict[str, str]:
     action = request.POST.get("script_action", "")
     episode_id = request.GET.get("episode", "") or request.POST.get("episode_id", "")
 
+    if action == "delete_script":
+        script_id = request.POST.get("script_id", "").strip()
+        if not script_id:
+            return {"error": "Script not found."}
+        try:
+            deleted = ScriptDashboardService().delete_script(script_id)
+        except ValueError as exc:
+            return {"error": str(exc)}
+        return {
+            "message": (
+                f'Deleted script v{deleted["version"]} for '
+                f'"{deleted["episode_title"]}".'
+            ),
+            "episode_id": deleted["episode_id"],
+        }
+
     if action != "create_manual_script":
         return {"error": "Unknown action."}
 
@@ -517,7 +533,7 @@ def _handle_scripts_post(request: HttpRequest) -> dict[str, str]:
         )
         return {
             "message": (
-                f'Manual script "{script.title}" created (v{script.version}). '
+                f'Manual script saved for "{script.episode.title}" (v{script.version}). '
                 "Open it to generate TTS audio."
             ),
             "script_id": str(script.id),
@@ -540,7 +556,9 @@ def scripts(request: HttpRequest) -> HttpResponse:
         script_id = result.get("script_id")
         if script_id:
             return redirect(reverse("operations:script_detail", args=[script_id]))
-        return redirect(_scripts_tab_url(episode_id=episode_id))
+        return redirect(
+            _scripts_tab_url(episode_id=result.get("episode_id") or episode_id)
+        )
     return redirect(_scripts_tab_url(episode_id=episode_id))
 
 
@@ -632,7 +650,7 @@ def tts_generation(request: HttpRequest) -> HttpResponse:
             request,
             "No ready script for this episode yet. Generate or add a manual script first.",
         )
-        return redirect(f"{reverse('operations:content')}?view=waiting-for-audio")
+        return redirect(f"{reverse('operations:content')}?view=episodes-today")
 
     workspace = ContentLibraryService().script_workspace()
     script_id = workspace.get("latest_ready_script_id", "")
@@ -688,7 +706,6 @@ def dashboard_insights(request: HttpRequest) -> HttpResponse:
     view_map = {
         "failed-jobs": "failed-jobs",
         "episodes-today": "episodes-today",
-        "waiting-for-audio": "waiting-for-audio",
     }
     view = view_map.get(tab, "failed-jobs")
     return redirect(f"{reverse('operations:content')}?view={view}")

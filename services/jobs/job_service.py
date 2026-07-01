@@ -123,6 +123,15 @@ class JobService:
         return job
 
     @transaction.atomic
+    def merge_payload(self, job: Job, **updates: Any) -> Job:
+        """Merge keys into a job payload without replacing unrelated fields."""
+        payload = dict(job.payload)
+        payload.update(updates)
+        job.payload = payload
+        job.save(update_fields=["payload", "updated_at"])
+        return job
+
+    @transaction.atomic
     def mark_succeeded(self, job: Job, result: dict[str, Any] | None = None) -> Job:
         """Mark a job as succeeded and store its result."""
         job.status = JobStatus.SUCCEEDED

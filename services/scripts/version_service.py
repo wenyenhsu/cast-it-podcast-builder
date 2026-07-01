@@ -5,7 +5,7 @@ import uuid
 
 from django.db import transaction
 
-from apps.scripts.models import Script, ScriptMetadata, ScriptStatus, ValidationStatus
+from apps.scripts.models import Script, ScriptMetadata, ScriptSegment, ScriptStatus, ValidationStatus
 from domain.scripts.exceptions import ScriptVersionConflictError
 
 logger = logging.getLogger(__name__)
@@ -71,6 +71,66 @@ class ScriptVersionService:
                 "episode_id": str(episode_id),
                 "script_id": str(script.id),
                 "version": version,
+            },
+        )
+        return script
+
+    @transaction.atomic
+    def reset_placeholder_for_retry(
+        self,
+        script: Script,
+        *,
+        llm_provider: str,
+        model_name: str,
+        prompt_version: str,
+    ) -> Script:
+        """Reset a failed or in-progress script for another generation attempt."""
+        script.status = ScriptStatus.GENERATING
+        script.validation_status = ValidationStatus.PENDING
+        script.llm_provider = llm_provider
+        script.model_name = model_name
+        script.prompt_version = prompt_version
+        script.title = ""
+        script.estimated_duration_seconds = None
+        script.generated_at = None
+        script.save(
+            update_fields=[
+                "status",
+                "validation_status",
+                "llm_provider",
+                "model_name",
+                "prompt_version",
+                "title",
+                "estimated_duration_seconds",
+                "generated_at",
+                "updated_at",
+            ]
+        )
+        ScriptSegment.objects.filter(script=script).delete()
+        metadata = getattr(script, "metadata", None)
+        if metadata is not None:
+            metadata.source_article_ids = []
+            metadata.selected_topics = []
+            metadata.token_usage = {}
+            metadata.validation_results = {}
+            metadata.generation_notes = ""
+            metadata.save(
+                update_fields=[
+                    "source_article_ids",
+                    "selected_topics",
+                    "token_usage",
+                    "validation_results",
+                    "generation_notes",
+                    "updated_at",
+                ]
+            )
+        logger.info(
+            "Script placeholder reset for retry",
+            extra={
+                "event": "script_version_reset_for_retry",
+                "script_id": str(script.id),
+                "episode_id": str(script.episode_id),
+                "version": script.version,
             },
         )
         return script

@@ -18,11 +18,13 @@ class KnowledgeSettings:
     embedding_batch_size: int
     vector_store: str
     embedding_retry_count: int
+    enabled: bool
 
     @classmethod
     def from_django_settings(cls) -> "KnowledgeSettings":
         """Load settings from Django configuration."""
         return cls(
+            enabled=bool(getattr(settings, "RAG_ENABLED", True)),
             top_k=int(getattr(settings, "RAG_TOP_K", 10)),
             similarity_threshold=float(
                 getattr(settings, "RAG_SIMILARITY_THRESHOLD", 0.7)

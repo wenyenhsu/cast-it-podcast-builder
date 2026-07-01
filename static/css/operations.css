@@ -82,8 +82,15 @@ body {
   color: #4338ca;
 }
 
+.ops-status-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
 .ops-table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   margin: 0;
 }
@@ -106,6 +113,47 @@ body {
 
 .ops-table tbody tr:last-child td {
   border-bottom: 0;
+}
+
+.ops-table .ops-col-episode {
+  width: 22%;
+}
+
+.ops-table .ops-col-version {
+  width: 5rem;
+}
+
+.ops-table .ops-col-status {
+  width: 10.5rem;
+}
+
+.ops-table .ops-status-cell {
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.ops-table .ops-col-segments {
+  width: 5.5rem;
+}
+
+.ops-table .ops-col-date {
+  width: 11.5rem;
+}
+
+.ops-table .ops-col-actions {
+  width: 14.5rem;
+}
+
+.ops-table .ops-actions-cell {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.ops-table .ops-actions-cell form {
+  margin: 0;
 }
 
 .ops-link-card {

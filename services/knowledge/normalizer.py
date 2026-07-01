@@ -64,7 +64,7 @@ class DocumentNormalizer:
         segment_text = "\n\n".join(
             f"{segment.speaker}: {segment.text}" for segment in segments
         )
-        content = _join_sections(script.title or script.episode.title, segment_text)
+        content = _join_sections(script.episode.title, segment_text)
         metadata: dict[str, Any] = {
             "episode_id": str(script.episode_id),
             "script_version": script.version,
@@ -75,7 +75,7 @@ class DocumentNormalizer:
         return DocumentIndexRequest(
             source_type=SourceType.SCRIPT,
             source_id=str(script.id),
-            title=script.title or script.episode.title,
+            title=script.episode.title,
             language=script.episode.language,
             content=content,
             metadata=metadata,

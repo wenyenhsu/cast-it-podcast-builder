@@ -32,21 +32,15 @@
     </a>
   </li>
   <li class="nav-item" role="presentation">
-    <a class="nav-link{% if content_view == 'failed-jobs' %} active{% endif %}" href="{% url 'operations:content' %}?view=failed-jobs" role="tab">
-      <i class="bi bi-exclamation-triangle me-1"></i>Failed Jobs
-      {% if pipeline_stats.failed_jobs %}<span class="badge text-bg-danger ms-1">{{ pipeline_stats.failed_jobs }}</span>{% endif %}
-    </a>
-  </li>
-  <li class="nav-item" role="presentation">
     <a class="nav-link{% if content_view == 'episodes-today' %} active{% endif %}" href="{% url 'operations:content' %}?view=episodes-today" role="tab">
       <i class="bi bi-calendar-day me-1"></i>Episodes Today
       {% if pipeline_stats.episodes_today %}<span class="badge text-bg-secondary ms-1">{{ pipeline_stats.episodes_today }}</span>{% endif %}
     </a>
   </li>
   <li class="nav-item" role="presentation">
-    <a class="nav-link{% if content_view == 'waiting-for-audio' %} active{% endif %}" href="{% url 'operations:content' %}?view=waiting-for-audio" role="tab">
-      <i class="bi bi-soundwave me-1"></i>Waiting for Audio
-      {% if pipeline_stats.waiting_for_audio %}<span class="badge text-bg-warning text-dark ms-1">{{ pipeline_stats.waiting_for_audio }}</span>{% endif %}
+    <a class="nav-link{% if content_view == 'failed-jobs' %} active{% endif %}" href="{% url 'operations:content' %}?view=failed-jobs" role="tab">
+      <i class="bi bi-exclamation-triangle me-1"></i>Failed Jobs
+      {% if pipeline_stats.failed_jobs %}<span class="badge text-bg-danger ms-1">{{ pipeline_stats.failed_jobs }}</span>{% endif %}
     </a>
   </li>
   <li class="nav-item" role="presentation">
@@ -119,7 +113,7 @@
       <div class="fw-semibold">
         {% if script_workspace.latest_script_version %}
         v{{ script_workspace.latest_script_version }}
-        <span class="badge text-bg-light border text-secondary ms-1">{{ script_workspace.latest_script_status }}</span>
+        {% include "operations/partials/ops_status_badge.html" with status=script_workspace.latest_script_status extra_class="ms-1" %}
         {% else %}
         —
         {% endif %}
@@ -214,7 +208,7 @@
         <p class="text-secondary small">
           Name this episode before queuing script generation from the selected articles.
         </p>
-        <label class="form-label" for="episode_title">Episode title</label>
+        <label class="form-label" for="episode_title">Episode</label>
         <input
           type="text"
           class="form-control"
@@ -356,8 +350,6 @@
   {% include "operations/partials/content_failed_jobs.html" %}
 {% elif content_view == "episodes-today" %}
   {% include "operations/partials/content_episodes_today.html" %}
-{% elif content_view == "waiting-for-audio" %}
-  {% include "operations/partials/content_waiting_audio.html" %}
 {% elif content_view == "scripts" %}
   {% include "operations/partials/content_scripts.html" %}
 {% elif content_view == "fail-log" %}

@@ -147,7 +147,7 @@ class AdminOperationsService:
             "id": str(script.id),
             "episode_id": str(script.episode_id),
             "version": script.version,
-            "title": script.title,
+            "title": script.episode.title,
             "status": script.status,
             "segments": segments,
         }

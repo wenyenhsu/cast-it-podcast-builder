@@ -232,7 +232,7 @@ def test_generate_script_requires_episode_title(
         },
     )
     assert response.status_code == 200
-    assert "Episode title is required" in response.content.decode()
+    assert "Episode name is required" in response.content.decode()
 
 
 @pytest.mark.django_db

@@ -47,6 +47,12 @@ class Episode(DomainModel):
     def __str__(self) -> str:
         return self.title
 
+    @property
+    def display_status(self) -> str:
+        from services.episodes.status_sync import episode_display_status
+
+        return episode_display_status(self)
+
 
 class EpisodeArticle(models.Model):
     """Many-to-many mapping between episodes and articles."""

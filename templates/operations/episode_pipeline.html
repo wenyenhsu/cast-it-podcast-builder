@@ -8,7 +8,7 @@
     <h1 class="h3 mb-1">{{ title }}</h1>
     <p class="text-secondary mb-0">
       Episode <strong>{{ episode.title }}</strong>
-      <span class="badge text-bg-light border ms-1">{{ episode.status }}</span>
+      {% include "operations/partials/ops_status_badge.html" with status=episode.display_status extra_class="ms-1" %}
     </p>
   </div>
   <div class="d-flex flex-wrap gap-2">

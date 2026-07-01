@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.utils import timezone
 
 from apps.articles.models import Article
@@ -12,6 +12,7 @@ from apps.publish.models import PublishedEpisode, PublishJobStatus
 from apps.scheduler.models import Job, JobStatus
 from apps.scripts.models import Script, ScriptStatus
 from services.admin.job_progress import JobProgressService
+from services.episodes.status_sync import episode_display_status
 
 
 class DashboardStatsService:
@@ -40,10 +41,6 @@ class DashboardStatsService:
             "episodes_generated_today": Episode.objects.filter(
                 created_at__date=today
             ).count(),
-            "episodes_waiting_for_audio": Episode.objects.filter(
-                status=EpisodeStatus.GENERATING_AUDIO
-            ).count()
-            + Episode.objects.filter(status=EpisodeStatus.GENERATING_SCRIPT).count(),
             "episodes_waiting_for_publishing": Episode.objects.filter(
                 status=EpisodeStatus.PUBLISHING
             ).count()
@@ -64,21 +61,12 @@ class DashboardStatsService:
         return [self._serialize_job(job, progress) for job in jobs]
 
     def list_episodes_today(self, *, limit: int = 50) -> list[dict[str, Any]]:
-        today = timezone.now().date()
-        episodes = Episode.objects.filter(created_at__date=today).order_by(
-            "-created_at"
-        )[:limit]
-        return [self._serialize_episode(episode) for episode in episodes]
-
-    def list_episodes_waiting_for_audio(
-        self, *, limit: int = 50
-    ) -> list[dict[str, Any]]:
+        start_of_day = timezone.now().replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
         episodes = (
             Episode.objects.filter(
-                status__in=[
-                    EpisodeStatus.GENERATING_AUDIO,
-                    EpisodeStatus.GENERATING_SCRIPT,
-                ]
+                Q(created_at__gte=start_of_day) | Q(updated_at__gte=start_of_day)
             )
             .order_by("-updated_at")[:limit]
         )
@@ -114,6 +102,7 @@ class DashboardStatsService:
             "id": str(episode.id),
             "title": episode.title,
             "status": episode.status,
+            "display_status": episode_display_status(episode),
             "created_at": episode.created_at,
             "updated_at": episode.updated_at,
             "tts_script_id": tts_script_id,

@@ -23,8 +23,8 @@ def validate_stored_script(script: Script) -> ScriptValidationResult:
         for segment in script.segments.order_by("sequence")
     ]
     schema = PodcastScriptSchema(
-        title=script.title or script.episode.title,
-        summary=script.episode.summary or script.episode.description or script.title,
+        title=script.episode.title,
+        summary=script.episode.summary or script.episode.description or "",
         segments=segments,
     )
     service = ScriptValidationService()

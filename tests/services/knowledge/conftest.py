@@ -21,6 +21,7 @@ def news_source(db: None) -> NewsSource:
 @pytest.fixture
 def knowledge_settings() -> KnowledgeSettings:
     return KnowledgeSettings(
+        enabled=True,
         top_k=5,
         similarity_threshold=0.1,
         max_context_tokens=200,

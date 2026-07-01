@@ -168,7 +168,7 @@ class ContentLibraryService:
 
         title = episode_title.strip()
         if not title:
-            raise ContentLibraryError("Episode title is required.")
+            raise ContentLibraryError("Episode name is required.")
 
         episode = self.ensure_draft_episode()
         if episode.title != title:

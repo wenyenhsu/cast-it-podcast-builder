@@ -44,6 +44,10 @@ def test_create_manual_script_on_draft_episode() -> None:
     assert script.segments.count() == 2
     assert script.segments.order_by("sequence").first().speaker == Speaker.EXPERT
 
+    episode.refresh_from_db()
+    assert episode.title == "Manual Brief"
+    assert script.title == ""
+
     metadata = ScriptMetadata.objects.get(script=script)
     assert metadata.is_active is True
 
@@ -55,4 +59,5 @@ def test_create_manual_script_creates_draft_when_no_episode() -> None:
         dialogue="outro: Goodbye.",
     )
     assert Script.objects.filter(pk=script.id).exists()
+    assert script.episode.title == "Standalone Manual"
     assert script.episode.status == EpisodeStatus.DRAFT

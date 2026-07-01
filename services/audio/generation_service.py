@@ -25,6 +25,7 @@ from services.audio.settings import TTSSettings
 from services.audio.storage import AudioStorageService
 from services.audio.validation import TTSValidationService
 from services.audio.voice_cache import VoiceCacheService
+from services.episodes.status_sync import sync_episode_idle_status
 
 logger = logging.getLogger(__name__)
 
@@ -122,6 +123,7 @@ class AudioGenerationService:
                 "generation_time_seconds": round(elapsed, 3),
             },
         )
+        sync_episode_idle_status(episode)
         return results
 
     def generate_segment(self, segment: ScriptSegment) -> SegmentAudioResult:

@@ -10,6 +10,7 @@ from django.utils.text import slugify
 from apps.articles.models import Article, ArticleStatus, ArticleTag, Tag
 from apps.providers.models import NewsSource, ProviderType
 from domain.dtos.article import ArticleDTO
+from services.knowledge.article_indexing import index_article_best_effort
 from services.news.content_hash import ContentHashService
 from services.news.duplicate_detector import DuplicateDetector
 from services.news.validation import ArticleValidator
@@ -143,6 +144,7 @@ class NewsImportService:
             result.errors.append(message)
             return
 
+        index_article_best_effort(article)
         result.imported += 1
 
     def _get_or_create_source(

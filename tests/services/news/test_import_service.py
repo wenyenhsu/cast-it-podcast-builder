@@ -1,7 +1,7 @@
 """Tests for news import service."""
 
 from datetime import timedelta
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from django.utils import timezone
@@ -65,7 +65,8 @@ class TestNewsImportService:
         import_service: NewsImportService,
     ) -> None:
         provider = MockProvider([_valid_dto()])
-        result = import_service.import_from_provider(provider)
+        with patch("services.news.import_service.index_article_best_effort") as mock_index:
+            result = import_service.import_from_provider(provider)
 
         assert result.imported == 1
         assert result.skipped_duplicates == 0
@@ -74,6 +75,7 @@ class TestNewsImportService:
         assert Article.objects.count() == 1
         assert NewsSource.objects.filter(name="New Source").exists()
         assert Tag.objects.filter(name="python").exists()
+        mock_index.assert_called_once()
 
     def test_skips_invalid_articles(
         self,

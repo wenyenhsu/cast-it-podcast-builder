@@ -55,7 +55,7 @@ def script_prompt_builder(tmp_path: Path) -> ScriptPromptBuilder:
     )
     (templates_dir / "podcast_script_user.md").write_text(
         "Episode: {episode_title}\nSummary: {episode_summary}\n"
-        "Articles: {articles_block}\nSchema: {output_schema}",
+        "Articles: {articles_block}\nRAG: {rag_context_block}\nSchema: {output_schema}",
         encoding="utf-8",
     )
     (templates_dir / "persona_expert.md").write_text(

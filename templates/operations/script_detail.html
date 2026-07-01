@@ -5,14 +5,11 @@
 {% block content %}
 <div class="d-flex flex-column flex-md-row justify-content-between gap-3 align-items-md-center mb-4">
   <div>
-    <h1 class="h3 mb-1">{{ script.title }}</h1>
+    <h1 class="h3 mb-1">{{ script.episode_title }}</h1>
     <p class="text-secondary mb-0">
-      {{ script.episode_title }}
       <span class="badge text-bg-light border ms-1">v{{ script.version }}</span>
-      <span class="badge {% if script.status == 'ready' or script.status == 'approved' %}text-bg-success{% elif script.status == 'failed' %}text-bg-danger{% elif script.status == 'generating' %}text-bg-primary{% else %}text-bg-light border text-secondary{% endif %} ms-1">
-        {{ script.status }}
-      </span>
-      <span class="badge text-bg-light border text-secondary ms-1">{{ script.validation_status }}</span>
+      {% include "operations/partials/ops_status_badge.html" with status=script.status extra_class="ms-1" %}
+      {% include "operations/partials/ops_status_badge.html" with status=script.validation_status extra_class="ms-1" %}
       {% if script.has_generated_audio %}
       <span class="badge text-bg-success ms-1">
         {{ script.ready_audio_count }}/{{ script.segments|length }} audio

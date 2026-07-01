@@ -4,6 +4,7 @@ from typing import Any
 
 from apps.audio.models import AudioAsset, AudioAssetStatus
 from apps.scripts.models import Script, ScriptSegment
+from services.episodes.status_sync import episode_display_status
 
 
 class ScriptDashboardService:
@@ -20,8 +21,9 @@ class ScriptDashboardService:
                 "episode_id": str(script.episode_id),
                 "episode_title": script.episode.title,
                 "version": script.version,
-                "title": script.title or script.episode.title,
+                "title": script.episode.title,
                 "status": script.status,
+                "display_status": episode_display_status(script.episode),
                 "validation_status": script.validation_status,
                 "llm_provider": script.llm_provider,
                 "model_name": script.model_name,
@@ -32,6 +34,23 @@ class ScriptDashboardService:
             }
             for script in scripts
         ]
+
+    def delete_script(self, script_id: str) -> dict[str, str]:
+        """Delete a script and return display metadata for messaging."""
+        try:
+            script = Script.objects.select_related("episode").get(pk=script_id)
+        except Script.DoesNotExist as exc:
+            raise ValueError("Script not found.") from exc
+
+        label = script.episode.title
+        version = script.version
+        episode_id = str(script.episode_id)
+        script.delete()
+        return {
+            "episode_title": label,
+            "version": str(version),
+            "episode_id": episode_id,
+        }
 
     def get_script_detail(self, script_id: str) -> dict[str, Any] | None:
         try:
@@ -76,7 +95,7 @@ class ScriptDashboardService:
             "episode_id": str(script.episode_id),
             "episode_title": script.episode.title,
             "version": script.version,
-            "title": script.title or script.episode.title,
+            "title": script.episode.title,
             "status": script.status,
             "validation_status": script.validation_status,
             "llm_provider": script.llm_provider,

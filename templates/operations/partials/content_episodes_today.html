@@ -1,43 +1,51 @@
 <div class="card p-4">
   <div class="mb-3">
     <h2 class="h5 mb-1">Episodes Today</h2>
-    <p class="text-secondary small mb-0">Episodes created since midnight (local time).</p>
+    <p class="text-secondary small mb-0">Episodes created or updated since midnight (local time).</p>
   </div>
   <div class="table-responsive">
     <table class="ops-table">
+      <colgroup>
+        <col class="ops-col-episode">
+        <col class="ops-col-status">
+        <col class="ops-col-date">
+        <col class="ops-col-actions">
+      </colgroup>
       <thead>
         <tr>
-          <th>Title</th>
+          <th>Episode</th>
           <th>Status</th>
           <th>Created</th>
-          <th></th>
+          <th class="text-end">Actions</th>
         </tr>
       </thead>
       <tbody>
         {% for episode in episodes_today %}
         <tr>
           <td class="fw-semibold">{{ episode.title }}</td>
-          <td>
-            <span class="badge text-bg-light border text-secondary text-capitalize">{{ episode.status|default:"—" }}</span>
+          <td class="ops-status-cell">
+            {% include "operations/partials/ops_status_badge.html" with status=episode.display_status %}
           </td>
           <td class="text-secondary text-nowrap small">{{ episode.created_at }}</td>
-          <td class="text-nowrap">
-            <a class="btn btn-sm btn-outline-primary" href="{% url 'operations:episode_pipeline' episode.id %}">Pipeline</a>
-            {% include "operations/partials/content_episode_tts_button.html" %}
-            <form method="post" class="d-inline">
-              {% csrf_token %}
-              <input type="hidden" name="content_action" value="delete_episode">
-              <input type="hidden" name="content_view" value="episodes-today">
-              <input type="hidden" name="type" value="{{ content_filter }}">
-              <input type="hidden" name="episode_id" value="{{ episode.id }}">
-              <button
-                type="submit"
-                class="btn btn-sm btn-outline-danger"
-                onclick="return confirm('Delete episode &quot;{{ episode.title|escapejs }}&quot;? This cannot be undone.');"
-              >
-                Delete
-              </button>
-            </form>
+          <td>
+            <div class="ops-actions-cell">
+              <a class="btn btn-sm btn-outline-primary" href="{% url 'operations:episode_pipeline' episode.id %}">Pipeline</a>
+              {% include "operations/partials/content_episode_tts_button.html" %}
+              <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="content_action" value="delete_episode">
+                <input type="hidden" name="content_view" value="episodes-today">
+                <input type="hidden" name="type" value="{{ content_filter }}">
+                <input type="hidden" name="episode_id" value="{{ episode.id }}">
+                <button
+                  type="submit"
+                  class="btn btn-sm btn-outline-danger"
+                  onclick="return confirm('Delete episode &quot;{{ episode.title|escapejs }}&quot;? This cannot be undone.');"
+                >
+                  Delete
+                </button>
+              </form>
+            </div>
           </td>
         </tr>
         {% empty %}

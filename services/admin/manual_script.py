@@ -6,7 +6,8 @@ from typing import Any
 from django.db import transaction
 from django.utils import timezone
 
-from apps.episodes.models import Episode
+from apps.episodes.models import Episode, EpisodeStatus
+from services.episodes.title import apply_episode_name, normalize_episode_name
 from apps.scripts.models import (
     Script,
     ScriptMetadata,
@@ -113,18 +114,21 @@ class ManualScriptService:
         dialogue: str,
         episode_id: str | None = None,
     ) -> Script:
-        cleaned_title = title.strip()
+        cleaned_title = normalize_episode_name(title)
         if not cleaned_title:
             raise ManualScriptError("Episode name is required.")
 
         parsed_segments = parse_manual_script_lines(dialogue)
         episode = self.resolve_episode(episode_id)
+        apply_episode_name(episode, cleaned_title)
+        episode.status = EpisodeStatus.DRAFT
+        episode.save(update_fields=["status", "updated_at"])
         version = self._version_service.get_next_version(episode.id)
 
         script = Script.objects.create(
             episode=episode,
             version=version,
-            title=cleaned_title,
+            title="",
             llm_provider="manual",
             model_name="",
             prompt_version="manual",

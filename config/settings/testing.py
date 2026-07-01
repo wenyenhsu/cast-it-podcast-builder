@@ -30,6 +30,8 @@ CACHES = {
 CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = True
 
+RAG_ENABLED = False
+
 OLLAMA_CHAT_MODEL = "test-chat-model"
 OLLAMA_EMBED_MODEL = "test-embed-model"
 LLM_PROVIDER = "ollama"

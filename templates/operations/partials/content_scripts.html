@@ -61,11 +61,19 @@
   {% if scripts %}
   <div class="table-responsive">
     <table class="ops-table">
+      <colgroup>
+        <col class="ops-col-episode">
+        <col class="ops-col-status">
+        <col class="ops-col-version">
+        <col class="ops-col-segments">
+        <col class="ops-col-date">
+        <col class="ops-col-actions">
+      </colgroup>
       <thead>
         <tr>
           <th>Episode</th>
-          <th>Version</th>
           <th>Status</th>
+          <th>Version</th>
           <th>Segments</th>
           <th>Generated</th>
           <th class="text-end">Actions</th>
@@ -76,24 +84,36 @@
         <tr>
           <td>
             <a href="{% url 'operations:script_detail' script.id %}" class="article-title-link">
-              {{ script.title|default:script.episode_title|truncatechars:48 }}
+              {{ script.episode_title|truncatechars:48 }}
             </a>
           </td>
-          <td>v{{ script.version }}</td>
-          <td>
-            <span class="badge {% if script.status == 'ready' or script.status == 'approved' %}text-bg-success{% elif script.status == 'failed' %}text-bg-danger{% elif script.status == 'generating' %}text-bg-primary{% else %}text-bg-light border text-secondary{% endif %}">
-              {{ script.status }}
-            </span>
+          <td class="ops-status-cell">
+            {% include "operations/partials/ops_status_badge.html" with status=script.display_status %}
           </td>
+          <td>v{{ script.version }}</td>
           <td>{{ script.segment_count }}</td>
           <td class="text-secondary text-nowrap">{{ script.generated_at|default:script.created_at }}</td>
           <td class="text-end text-nowrap">
-            <a class="btn btn-sm btn-outline-primary" href="{% url 'operations:script_detail' script.id %}">Open</a>
-            <a
-              class="btn btn-sm {% if script.status == 'ready' or script.status == 'approved' %}btn-outline-primary{% else %}btn-outline-secondary{% endif %}"
-              href="{% url 'operations:tts_generation' %}?script={{ script.id }}"
-              {% if script.status != 'ready' and script.status != 'approved' %}title="Script must be ready before generating TTS"{% endif %}
-            >Generate TTS</a>
+            <div class="ops-actions-cell">
+              <a
+                class="btn btn-sm {% if script.status == 'ready' or script.status == 'approved' %}btn-outline-primary{% else %}btn-outline-secondary{% endif %}"
+                href="{% url 'operations:tts_generation' %}?script={{ script.id }}"
+                {% if script.status != 'ready' and script.status != 'approved' %}title="Script must be ready before generating TTS"{% endif %}
+              >Generate TTS</a>
+              <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="script_action" value="delete_script">
+                <input type="hidden" name="script_id" value="{{ script.id }}">
+                {% if scripts_episode_id %}
+                <input type="hidden" name="episode_id" value="{{ scripts_episode_id }}">
+                {% endif %}
+                <button
+                  type="submit"
+                  class="btn btn-sm btn-outline-danger"
+                  onclick="return confirm('Delete script v{{ script.version }} for &quot;{{ script.episode_title|escapejs }}&quot;? This cannot be undone.');"
+                >Delete</button>
+              </form>
+            </div>
           </td>
         </tr>
         {% endfor %}
