@@ -1,3 +1,4 @@
+{% load ops_extras %}
 <div class="row g-4 mb-4">
   <div class="col-12 col-xl-4">
     <div class="card p-4 h-100">
@@ -110,7 +111,7 @@
               {{ article.title|truncatechars:80 }}
             </a>
           </td>
-          <td class="text-secondary text-nowrap">{{ article.created_at }}</td>
+          <td class="text-secondary text-nowrap">{{ article.created_at|local_datetime }}</td>
         </tr>
         {% endfor %}
       </tbody>

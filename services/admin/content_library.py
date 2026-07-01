@@ -7,6 +7,7 @@ from django.utils import timezone
 from apps.articles.models import Article
 from apps.episodes.models import Episode, EpisodeArticle, EpisodeStatus
 from apps.providers.models import ProviderType
+from apps.scheduler.models import Job, JobStatus
 from apps.scripts.models import Script, ScriptStatus
 from domain.jobs.exceptions import JobCancellationError
 from services.admin.dispatch import AdminJobDispatchService
@@ -213,3 +214,11 @@ class ContentLibraryService:
         title = episode.title
         episode.delete()
         return title
+
+    def delete_failed_job(self, job_id: str) -> str:
+        job = Job.objects.filter(pk=job_id, status=JobStatus.FAILED).first()
+        if job is None:
+            raise ContentLibraryError("Failed job not found or already cleared.")
+        label = JobProgressService().label_for(job.job_type)
+        job.delete()
+        return label

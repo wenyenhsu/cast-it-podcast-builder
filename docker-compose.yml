@@ -43,6 +43,7 @@ services:
     environment:
       DJANGO_SETTINGS_MODULE: config.settings.development
       ENVIRONMENT: development
+      TIME_ZONE: ${TIME_ZONE:-America/Los_Angeles}
       POSTGRES_HOST: db
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/0
@@ -79,6 +80,7 @@ services:
     environment:
       DJANGO_SETTINGS_MODULE: config.settings.development
       ENVIRONMENT: development
+      TIME_ZONE: ${TIME_ZONE:-America/Los_Angeles}
       POSTGRES_HOST: db
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/0
@@ -105,6 +107,7 @@ services:
     environment:
       DJANGO_SETTINGS_MODULE: config.settings.development
       ENVIRONMENT: development
+      TIME_ZONE: ${TIME_ZONE:-America/Los_Angeles}
       POSTGRES_HOST: db
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/0

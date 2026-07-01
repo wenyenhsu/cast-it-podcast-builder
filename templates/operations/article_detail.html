@@ -1,4 +1,5 @@
 {% extends "operations/base.html" %}
+{% load ops_extras %}
 
 {% block title %}{{ title }} | Cast It{% endblock %}
 
@@ -47,7 +48,7 @@
         <dt class="col-5 text-secondary">Published</dt>
         <dd class="col-7 mb-2">{{ article.published_at|default:"—" }}</dd>
         <dt class="col-5 text-secondary">Imported</dt>
-        <dd class="col-7 mb-2">{{ article.created_at }}</dd>
+        <dd class="col-7 mb-2">{{ article.created_at|local_datetime }}</dd>
         <dt class="col-5 text-secondary">Importance</dt>
         <dd class="col-7 mb-0">{{ article.importance_score|default:"—" }}</dd>
       </dl>

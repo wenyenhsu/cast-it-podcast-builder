@@ -1,4 +1,5 @@
 {% extends "operations/base.html" %}
+{% load ops_extras %}
 
 {% block title %}Scripts | Cast It{% endblock %}
 
@@ -95,29 +96,33 @@
         {% for script in scripts %}
         <tr>
           <td>
+            {% if script.id %}
             <a href="{% url 'operations:script_detail' script.id %}" class="article-title-link">
               {{ script.episode_title|truncatechars:48 }}
             </a>
+            {% else %}
+            <span class="fw-semibold">{{ script.episode_title|truncatechars:48 }}</span>
+            {% endif %}
           </td>
           <td class="ops-status-cell">
             {% include "operations/partials/ops_status_badge.html" with status=script.display_status %}
           </td>
-          <td>v{{ script.version }}</td>
+          <td>{% if script.version %}v{{ script.version }}{% else %}—{% endif %}</td>
           <td>{{ script.segment_count }}</td>
-          <td class="text-secondary text-nowrap">{{ script.generated_at|default:script.created_at }}</td>
+          <td class="text-secondary text-nowrap">{{ script.generated_at|default:script.updated_at|local_datetime }}</td>
           <td class="text-end">
             <div class="ops-actions-cell">
               <form method="post">
                 {% csrf_token %}
-                <input type="hidden" name="script_action" value="delete_script">
+                <input type="hidden" name="script_action" value="delete_episode">
+                <input type="hidden" name="episode_id" value="{{ script.episode_id }}">
+                {% if script.id %}
                 <input type="hidden" name="script_id" value="{{ script.id }}">
-                {% if episode_id %}
-                <input type="hidden" name="episode_id" value="{{ episode_id }}">
                 {% endif %}
                 <button
                   type="submit"
                   class="btn btn-sm btn-outline-danger"
-                  onclick="return confirm('Delete script v{{ script.version }} for &quot;{{ script.episode_title|escapejs }}&quot;? This cannot be undone.');"
+                  onclick="return confirm('Delete episode &quot;{{ script.episode_title|escapejs }}&quot; and all scripts/audio? This cannot be undone.');"
                 >Delete</button>
               </form>
             </div>

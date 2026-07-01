@@ -1,8 +1,11 @@
+{% load ops_extras %}
 <div class="card p-4">
   <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
     <div>
       <h2 class="h5 mb-1">Failed Jobs</h2>
-      <p class="text-secondary small mb-0">Background tasks that ended with an error.</p>
+      <p class="text-secondary small mb-0">
+        Historical errors — not currently running. Clear old records with Delete.
+      </p>
     </div>
     <a class="btn btn-sm btn-outline-secondary" href="{% url 'admin:scheduler_job_changelist' %}?status__exact=failed">
       <i class="bi bi-box-arrow-up-right me-1"></i>Admin
@@ -27,12 +30,29 @@
           <td class="fw-semibold">{{ job.label }}</td>
           <td class="text-danger small">{{ job.error_message|truncatechars:120 }}</td>
           <td>{{ job.retry_count }}</td>
-          <td class="text-secondary text-nowrap small">{{ job.completed_at|default:job.created_at }}</td>
+          <td class="text-secondary text-nowrap small">
+            <time datetime="{{ job.completed_at|default:job.created_at|date:'c' }}" title="{{ job.completed_at|default:job.created_at|local_datetime_title }}">
+              {{ job.completed_at|default:job.created_at|local_datetime }}
+            </time>
+          </td>
           <td class="text-nowrap">
-            <a class="btn btn-sm btn-outline-primary" href="{% url 'admin:scheduler_job_change' job.id %}">Details</a>
             {% if job.episode_id %}
             <a class="btn btn-sm btn-outline-secondary" href="{% url 'operations:episode_pipeline' job.episode_id %}">Pipeline</a>
             {% endif %}
+            <form method="post" class="d-inline">
+              {% csrf_token %}
+              <input type="hidden" name="content_action" value="delete_failed_job">
+              <input type="hidden" name="content_view" value="failed-jobs">
+              <input type="hidden" name="type" value="{{ content_filter }}">
+              <input type="hidden" name="job_id" value="{{ job.id }}">
+              <button
+                type="submit"
+                class="btn btn-sm btn-outline-danger"
+                onclick="return confirm('Delete this failed job record?');"
+              >
+                Delete
+              </button>
+            </form>
           </td>
         </tr>
         {% empty %}

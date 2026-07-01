@@ -12,15 +12,22 @@ from apps.publish.models import PublishedEpisode, PublishJobStatus
 from apps.scheduler.models import Job, JobStatus
 from apps.scripts.models import Script, ScriptStatus
 from services.admin.job_progress import JobProgressService
+from services.admin.time_window import local_start_of_day
 from services.episodes.status_sync import episode_display_status
 
 
 class DashboardStatsService:
     """Computes overview statistics for the admin dashboard."""
 
+    @staticmethod
+    def _episodes_today_queryset():
+        start_of_day = local_start_of_day()
+        return Episode.objects.filter(
+            Q(created_at__gte=start_of_day) | Q(updated_at__gte=start_of_day)
+        )
+
     def overview(self) -> dict[str, Any]:
-        today = timezone.now().date()
-        start_of_day = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        start_of_day = local_start_of_day()
 
         job_counts = dict(
             Job.objects.values("status")
@@ -38,9 +45,7 @@ class DashboardStatsService:
             "queued_jobs": job_counts.get(JobStatus.QUEUED, 0),
             "running_jobs": job_counts.get(JobStatus.RUNNING, 0),
             "failed_jobs": job_counts.get(JobStatus.FAILED, 0),
-            "episodes_generated_today": Episode.objects.filter(
-                created_at__date=today
-            ).count(),
+            "episodes_generated_today": self._episodes_today_queryset().count(),
             "episodes_waiting_for_publishing": Episode.objects.filter(
                 status=EpisodeStatus.PUBLISHING
             ).count()
@@ -61,15 +66,7 @@ class DashboardStatsService:
         return [self._serialize_job(job, progress) for job in jobs]
 
     def list_episodes_today(self, *, limit: int = 50) -> list[dict[str, Any]]:
-        start_of_day = timezone.now().replace(
-            hour=0, minute=0, second=0, microsecond=0
-        )
-        episodes = (
-            Episode.objects.filter(
-                Q(created_at__gte=start_of_day) | Q(updated_at__gte=start_of_day)
-            )
-            .order_by("-updated_at")[:limit]
-        )
+        episodes = self._episodes_today_queryset().order_by("-updated_at")[:limit]
         return [self._serialize_episode(episode) for episode in episodes]
 
     @staticmethod

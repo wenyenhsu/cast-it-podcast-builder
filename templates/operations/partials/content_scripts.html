@@ -1,3 +1,4 @@
+{% load ops_extras %}
 <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
   <div>
     <h2 class="h5 mb-1">Scripts</h2>
@@ -83,34 +84,45 @@
         {% for script in scripts %}
         <tr>
           <td>
+            {% if script.id %}
             <a href="{% url 'operations:script_detail' script.id %}" class="article-title-link">
               {{ script.episode_title|truncatechars:48 }}
             </a>
+            {% else %}
+            <span class="fw-semibold">{{ script.episode_title|truncatechars:48 }}</span>
+            {% endif %}
           </td>
           <td class="ops-status-cell">
             {% include "operations/partials/ops_status_badge.html" with status=script.display_status %}
           </td>
-          <td>v{{ script.version }}</td>
+          <td>{% if script.version %}v{{ script.version }}{% else %}—{% endif %}</td>
           <td>{{ script.segment_count }}</td>
-          <td class="text-secondary text-nowrap">{{ script.generated_at|default:script.created_at }}</td>
+          <td class="text-secondary text-nowrap">
+            <time datetime="{{ script.generated_at|default:script.updated_at|date:'c' }}" title="{{ script.generated_at|default:script.updated_at|local_datetime_title }}">
+              {{ script.generated_at|default:script.updated_at|local_datetime }}
+            </time>
+          </td>
           <td class="text-end text-nowrap">
             <div class="ops-actions-cell">
+              {% if script.can_generate_tts %}
               <a
-                class="btn btn-sm {% if script.status == 'ready' or script.status == 'approved' %}btn-outline-primary{% else %}btn-outline-secondary{% endif %}"
-                href="{% url 'operations:tts_generation' %}?script={{ script.id }}"
-                {% if script.status != 'ready' and script.status != 'approved' %}title="Script must be ready before generating TTS"{% endif %}
+                class="btn btn-sm btn-outline-primary"
+                href="{% url 'operations:tts_generation' %}?script={{ script.tts_script_id }}"
               >Generate TTS</a>
+              {% else %}
+              <a class="btn btn-sm btn-outline-secondary" href="#" tabindex="-1" aria-disabled="true" onclick="return false;">Generate TTS</a>
+              {% endif %}
               <form method="post">
                 {% csrf_token %}
-                <input type="hidden" name="script_action" value="delete_script">
+                <input type="hidden" name="script_action" value="delete_episode">
+                <input type="hidden" name="episode_id" value="{{ script.episode_id }}">
+                {% if script.id %}
                 <input type="hidden" name="script_id" value="{{ script.id }}">
-                {% if scripts_episode_id %}
-                <input type="hidden" name="episode_id" value="{{ scripts_episode_id }}">
                 {% endif %}
                 <button
                   type="submit"
                   class="btn btn-sm btn-outline-danger"
-                  onclick="return confirm('Delete script v{{ script.version }} for &quot;{{ script.episode_title|escapejs }}&quot;? This cannot be undone.');"
+                  onclick="return confirm('Delete episode &quot;{{ script.episode_title|escapejs }}&quot; and all scripts/audio? This cannot be undone.');"
                 >Delete</button>
               </form>
             </div>

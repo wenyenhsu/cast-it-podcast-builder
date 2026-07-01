@@ -215,15 +215,17 @@ def test_delete_script_from_scripts_ui(admin_client) -> None:
         status=ScriptStatus.FAILED,
     )
     response = admin_client.post(
-        reverse("operations:scripts"),
+        reverse("operations:content"),
         {
-            "script_action": "delete_script",
+            "script_action": "delete_episode",
             "script_id": str(script.id),
+            "episode_id": str(episode.id),
         },
     )
     assert response.status_code == 302
+    assert "view=scripts" in response.url
     assert not Script.objects.filter(pk=script.id).exists()
-    assert Script.objects.filter(episode=episode).count() == 0
+    assert not Episode.objects.filter(pk=episode.id).exists()
 
 
 @pytest.mark.django_db

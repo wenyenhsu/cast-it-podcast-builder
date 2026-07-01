@@ -1,4 +1,5 @@
 {% extends "operations/base.html" %}
+{% load ops_extras %}
 
 {% block title %}{{ title }} | Cast It{% endblock %}
 
@@ -61,7 +62,7 @@
         <dt class="col-5 text-secondary">Source Articles</dt>
         <dd class="col-7 mb-2">{{ script.source_article_count }}</dd>
         <dt class="col-5 text-secondary">Generated</dt>
-        <dd class="col-7 mb-0">{{ script.generated_at|default:script.created_at }}</dd>
+        <dd class="col-7 mb-0">{{ script.generated_at|default:script.created_at|local_datetime }}</dd>
       </dl>
     </div>
   </div>

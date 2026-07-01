@@ -296,7 +296,7 @@ def _content_context(request: HttpRequest) -> dict[str, object]:
         "pipeline_stats": {
             "failed_jobs": overview["failed_jobs"],
             "episodes_today": overview["episodes_generated_today"],
-            "scripts_total": overview["scripts_total"],
+            "scripts_total": overview["episodes_generated_today"],
         },
         "articles": service.list_articles(provider_type=provider_type),
         "article_totals": service.article_totals(),
@@ -336,7 +336,10 @@ def _scripts_tab_context(request: HttpRequest) -> dict[str, object]:
     return {
         "scripts_episode_id": episode_id,
         "scripts_episode": episode,
-        "scripts": ScriptDashboardService().list_scripts(episode_id=episode_id),
+        "scripts": ScriptDashboardService().list_scripts(
+            episode_id=episode_id,
+            sync_with_episodes_today=True,
+        ),
         "manual_form_defaults": form_defaults,
     }
 
@@ -388,6 +391,14 @@ def _handle_content_post(request: HttpRequest) -> dict[str, str]:
                 "message": f'Episode "{title}" deleted.',
                 "type": content_filter,
                 "content_view": request.POST.get("content_view", "episodes-today"),
+            }
+
+        if action == "delete_failed_job":
+            label = service.delete_failed_job(request.POST.get("job_id", ""))
+            return {
+                "message": f"Deleted failed {label} job.",
+                "type": content_filter,
+                "content_view": "failed-jobs",
             }
     except ContentLibraryError as exc:
         return {"error": exc.message, "type": content_filter}
@@ -465,6 +476,8 @@ def content(request: HttpRequest) -> HttpResponse:
             script_id = result.get("script_id")
             if script_id:
                 return redirect(reverse("operations:script_detail", args=[script_id]))
+            if result.get("redirect_view") == "scripts":
+                return redirect(f"{reverse('operations:content')}?view=scripts")
             redirect_episode_id = result.get("episode_id") or request.POST.get(
                 "episode_id", ""
             )
@@ -506,20 +519,22 @@ def _handle_scripts_post(request: HttpRequest) -> dict[str, str]:
     action = request.POST.get("script_action", "")
     episode_id = request.GET.get("episode", "") or request.POST.get("episode_id", "")
 
-    if action == "delete_script":
+    if action in {"delete_script", "delete_episode"}:
         script_id = request.POST.get("script_id", "").strip()
-        if not script_id:
-            return {"error": "Script not found."}
+        episode_id = request.POST.get("episode_id", "").strip()
+        service = ScriptDashboardService()
         try:
-            deleted = ScriptDashboardService().delete_script(script_id)
+            if episode_id:
+                deleted = service.delete_episode(episode_id)
+            elif script_id:
+                deleted = service.delete_script(script_id)
+            else:
+                return {"error": "Episode not found."}
         except ValueError as exc:
             return {"error": str(exc)}
         return {
-            "message": (
-                f'Deleted script v{deleted["version"]} for '
-                f'"{deleted["episode_title"]}".'
-            ),
-            "episode_id": deleted["episode_id"],
+            "message": f'Deleted episode "{deleted["episode_title"]}".',
+            "redirect_view": "scripts",
         }
 
     if action != "create_manual_script":

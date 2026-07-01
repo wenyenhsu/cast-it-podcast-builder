@@ -1,4 +1,5 @@
 {% extends "operations/base.html" %}
+{% load ops_extras %}
 
 {% block title %}{{ title }} | Cast It{% endblock %}
 
@@ -41,7 +42,7 @@
       <div class="pipeline-time-card">
         <div class="pipeline-time-label">Started</div>
         <div class="pipeline-time-value">
-          {% if overview.started_at %}{{ overview.started_at|date:"M j, g:i A" }}{% else %}—{% endif %}
+          {% if overview.started_at %}{{ overview.started_at|local_datetime }}{% else %}—{% endif %}
         </div>
       </div>
     </div>
@@ -49,7 +50,7 @@
       <div class="pipeline-time-card">
         <div class="pipeline-time-label">Finished</div>
         <div class="pipeline-time-value">
-          {% if overview.finished_at %}{{ overview.finished_at|date:"M j, g:i A" }}{% else %}—{% endif %}
+          {% if overview.finished_at %}{{ overview.finished_at|local_datetime }}{% else %}—{% endif %}
         </div>
       </div>
     </div>

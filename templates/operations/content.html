@@ -1,4 +1,5 @@
 {% extends "operations/base.html" %}
+{% load ops_extras %}
 
 {% block title %}Content | Cast It{% endblock %}
 
@@ -296,7 +297,7 @@
               {% endif %}
             </td>
             <td class="text-secondary">{{ article.source_name }}</td>
-            <td class="text-secondary text-nowrap">{{ article.created_at }}</td>
+            <td class="text-secondary text-nowrap">{{ article.created_at|local_datetime }}</td>
             <td>
               {% if article.selected_for_script %}
               <span class="badge text-bg-primary">Script Source</span>

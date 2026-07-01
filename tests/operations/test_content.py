@@ -5,6 +5,7 @@ from django.urls import reverse
 
 from apps.articles.models import Article, ArticleStatus
 from apps.episodes.models import Episode, EpisodeArticle, EpisodeStatus
+from apps.scripts.models import Script, ScriptStatus
 from apps.providers.models import NewsSource, ProviderType
 from apps.scheduler.models import Job, JobStatus, JobType
 from services.admin.content_library import ContentLibraryError, ContentLibraryService
@@ -342,6 +343,12 @@ def test_content_shows_abort_while_script_queued(
 @pytest.mark.django_db
 def test_delete_episode_from_content_ui(admin_client) -> None:
     episode = Episode.objects.create(title="Delete Me", status=EpisodeStatus.DRAFT)
+    script = Script.objects.create(
+        episode=episode,
+        version=1,
+        title="",
+        status=ScriptStatus.READY,
+    )
 
     response = admin_client.post(
         reverse("operations:content"),
@@ -355,6 +362,7 @@ def test_delete_episode_from_content_ui(admin_client) -> None:
     assert response.status_code == 302
     assert "view=episodes-today" in response.url
     assert not Episode.objects.filter(pk=episode.id).exists()
+    assert not Script.objects.filter(pk=script.id).exists()
 
 
 @pytest.mark.django_db
@@ -376,6 +384,27 @@ def test_queue_script_generation_requires_selection(news_source: NewsSource) -> 
     service = ContentLibraryService()
     with pytest.raises(ContentLibraryError):
         service.queue_script_generation(episode_title="")
+
+
+@pytest.mark.django_db
+def test_delete_failed_job_from_content_ui(admin_client) -> None:
+    job = Job.objects.create(
+        job_type=JobType.GENERATE_SCRIPT,
+        status=JobStatus.FAILED,
+        error_message="boom",
+    )
+    response = admin_client.post(
+        reverse("operations:content"),
+        {
+            "content_action": "delete_failed_job",
+            "job_id": str(job.id),
+            "content_view": "failed-jobs",
+            "type": "all",
+        },
+    )
+    assert response.status_code == 302
+    assert "view=failed-jobs" in response.url
+    assert not Job.objects.filter(pk=job.id).exists()
 
 
 @pytest.mark.django_db

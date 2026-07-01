@@ -1,3 +1,4 @@
+{% load ops_extras %}
 <div class="card p-4 mb-4">
   <form method="get" class="row g-2 align-items-end">
     <input type="hidden" name="tab" value="logs">
@@ -53,7 +54,7 @@
       <tbody>
         {% for entry in entries %}
         <tr>
-          <td class="text-secondary text-nowrap">{{ entry.timestamp }}</td>
+          <td class="text-secondary text-nowrap">{{ entry.timestamp|local_datetime }}</td>
           <td>
             <span class="badge {% if entry.severity == 'ERROR' %}text-bg-danger{% elif entry.severity == 'WARNING' %}text-bg-warning{% else %}text-bg-secondary{% endif %}">
               {{ entry.severity }}

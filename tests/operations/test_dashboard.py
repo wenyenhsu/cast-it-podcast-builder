@@ -276,6 +276,30 @@ def test_dashboard_stats_list_methods(news_source: NewsSource) -> None:
 
 
 @pytest.mark.django_db
+def test_episodes_today_badge_count_matches_list() -> None:
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    service = DashboardStatsService()
+    stale = Episode.objects.create(
+        title="Updated Today",
+        status=EpisodeStatus.DRAFT,
+    )
+    Episode.objects.filter(pk=stale.pk).update(
+        created_at=timezone.now() - timedelta(days=2),
+        updated_at=timezone.now(),
+    )
+    Episode.objects.create(title="Created Today", status=EpisodeStatus.DRAFT)
+
+    overview = service.overview()
+    listed = service.list_episodes_today()
+
+    assert overview["episodes_generated_today"] == len(listed)
+    assert overview["episodes_generated_today"] == 2
+
+
+@pytest.mark.django_db
 def test_dashboard_insights_redirects_to_content(admin_client) -> None:
     response = admin_client.get(
         reverse("operations:dashboard_insights"),

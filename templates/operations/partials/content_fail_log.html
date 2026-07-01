@@ -1,3 +1,4 @@
+{% load ops_extras %}
 <div class="card p-4 mb-4">
   <form method="get" class="row g-2 align-items-end">
     <input type="hidden" name="view" value="fail-log">
@@ -52,7 +53,7 @@
       <tbody>
         {% for entry in fail_log_entries %}
         <tr>
-          <td class="text-secondary text-nowrap small">{{ entry.timestamp }}</td>
+          <td class="text-secondary text-nowrap small">{{ entry.timestamp|local_datetime }}</td>
           <td>
             <span class="badge {% if entry.severity == 'ERROR' or entry.severity == 'CRITICAL' %}text-bg-danger{% elif entry.severity == 'WARNING' %}text-bg-warning text-dark{% else %}text-bg-secondary{% endif %}">
               {{ entry.severity }}
