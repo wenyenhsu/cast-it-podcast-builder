@@ -307,6 +307,12 @@ FFMPEG_BINARY = env("FFMPEG_BINARY", default="ffmpeg")
 FFPROBE_BINARY = env("FFPROBE_BINARY", default="ffprobe")
 FFMPEG_TIMEOUT = env.float("FFMPEG_TIMEOUT", default=300.0)
 
+# Gmail Newsletter Provider
+GMAIL_CLIENT_ID = env("GMAIL_CLIENT_ID", default="")
+GMAIL_CLIENT_SECRET = env("GMAIL_CLIENT_SECRET", default="")
+GMAIL_REFRESH_TOKEN = env("GMAIL_REFRESH_TOKEN", default="")
+GMAIL_QUERY = env("GMAIL_QUERY", default="label:newsletters is:unread")
+
 # Publishing
 YOUTUBE_API_KEY = env("YOUTUBE_API_KEY", default="")
 YOUTUBE_CLIENT_ID = env("YOUTUBE_CLIENT_ID", default="")

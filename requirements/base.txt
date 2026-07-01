@@ -12,3 +12,6 @@ feedparser>=6.0,<7.0
 httpx>=0.28,<1.0
 pydantic>=2.10,<3.0
 pgvector>=0.3,<0.4
+google-api-python-client>=2.100,<3.0
+google-auth-oauthlib>=1.0,<2.0
+beautifulsoup4>=4.12,<5.0
