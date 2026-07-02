@@ -1,14 +1,20 @@
 """YouTube API client adapter."""
 
 import logging
-import uuid
+import subprocess
+import tempfile
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Protocol
 
 from domain.publish.exceptions import PublisherUnavailableError, YouTubePublishError
 from services.publish.settings import PublishSettings
 
 logger = logging.getLogger(__name__)
+
+_TOKEN_URI = "https://oauth2.googleapis.com/token"
+_YOUTUBE_SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
+_UPLOAD_CHUNK_SIZE = 256 * 1024  # 256 KB
 
 
 @dataclass(frozen=True)
@@ -38,8 +44,23 @@ class YouTubeAPIClient(Protocol):
         """Upload episode audio content to YouTube."""
 
 
+def _build_youtube_service(settings: PublishSettings):
+    from google.oauth2.credentials import Credentials
+    from googleapiclient.discovery import build
+
+    creds = Credentials(
+        token=None,
+        refresh_token=settings.youtube_refresh_token,
+        token_uri=_TOKEN_URI,
+        client_id=settings.youtube_client_id,
+        client_secret=settings.youtube_client_secret,
+        scopes=_YOUTUBE_SCOPES,
+    )
+    return build("youtube", "v3", credentials=creds, cache_discovery=False)
+
+
 class DefaultYouTubeAPIClient:
-    """YouTube API adapter with structured boundaries for future API integration."""
+    """YouTube API client using OAuth2 resumable upload."""
 
     def __init__(self, settings: PublishSettings | None = None) -> None:
         self._settings = settings or PublishSettings.from_django_settings()
@@ -65,27 +86,83 @@ class DefaultYouTubeAPIClient:
         channel_id: str,
         privacy_status: str = "public",
     ) -> YouTubeUploadResult:
-        if not self.health_check():
+        if not self._settings.youtube_configured():
             raise PublisherUnavailableError(
                 "YouTube publishing is unavailable or not configured."
             )
 
-        del tags, audio_file_path, privacy_status
+        try:
+            from googleapiclient.http import MediaFileUpload
 
-        # Placeholder upload path until full YouTube Data API integration lands.
-        video_id = f"yt-{uuid.uuid4().hex[:11]}"
-        video_url = f"https://www.youtube.com/watch?v={video_id}"
-        logger.info(
-            "YouTube upload simulated",
-            extra={
-                "event": "youtube_upload_simulated",
-                "channel_id": channel_id,
-                "title": title,
-                "description_length": len(description),
-                "video_id": video_id,
-            },
-        )
-        return YouTubeUploadResult(video_id=video_id, video_url=video_url)
+            svc = _build_youtube_service(self._settings)
+
+            body = {
+                "snippet": {
+                    "title": title[:100],
+                    "description": description[:5000],
+                    "tags": list(tags)[:500],
+                    "categoryId": "22",  # People & Blogs
+                },
+                "status": {
+                    "privacyStatus": privacy_status,
+                    "selfDeclaredMadeForKids": False,
+                },
+            }
+
+            # YouTube requires a video container — wrap MP3 in MP4 with black video
+            with tempfile.TemporaryDirectory() as tmp_dir:
+                mp4_path = Path(tmp_dir) / "episode.mp4"
+                subprocess.run(
+                    [
+                        "ffmpeg", "-y",
+                        "-f", "lavfi", "-i", "color=c=black:s=1280x720:r=1",
+                        "-i", audio_file_path,
+                        "-shortest",
+                        "-c:v", "libx264", "-tune", "stillimage", "-crf", "35",
+                        "-c:a", "aac", "-b:a", "192k",
+                        str(mp4_path),
+                    ],
+                    check=True,
+                    capture_output=True,
+                )
+
+                media = MediaFileUpload(
+                    str(mp4_path),
+                    mimetype="video/mp4",
+                    resumable=True,
+                    chunksize=_UPLOAD_CHUNK_SIZE,
+                )
+
+                request = svc.videos().insert(
+                    part="snippet,status",
+                    body=body,
+                    media_body=media,
+                )
+
+                response = None
+                while response is None:
+                    _, response = request.next_chunk()
+
+            video_id = response["id"]
+            video_url = f"https://www.youtube.com/watch?v={video_id}"
+
+            logger.info(
+                "YouTube upload complete",
+                extra={
+                    "event": "youtube_upload_complete",
+                    "video_id": video_id,
+                    "channel_id": channel_id,
+                    "title": title,
+                },
+            )
+            return YouTubeUploadResult(video_id=video_id, video_url=video_url)
+
+        except Exception as exc:
+            logger.exception(
+                "YouTube upload failed",
+                extra={"event": "youtube_upload_failed", "title": title},
+            )
+            raise YouTubePublishError(f"YouTube upload failed: {exc}") from exc
 
 
 class StubYouTubeAPIClient:
