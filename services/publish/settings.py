@@ -13,6 +13,7 @@ class PublishSettings:
     youtube_api_key: str
     youtube_client_id: str
     youtube_client_secret: str
+    youtube_refresh_token: str
     youtube_channel_id: str
     enable_youtube_publishing: bool
     enable_rss_publishing: bool
@@ -33,6 +34,7 @@ class PublishSettings:
             youtube_api_key=getattr(settings, "YOUTUBE_API_KEY", ""),
             youtube_client_id=getattr(settings, "YOUTUBE_CLIENT_ID", ""),
             youtube_client_secret=getattr(settings, "YOUTUBE_CLIENT_SECRET", ""),
+            youtube_refresh_token=getattr(settings, "YOUTUBE_REFRESH_TOKEN", ""),
             youtube_channel_id=getattr(settings, "YOUTUBE_CHANNEL_ID", ""),
             enable_youtube_publishing=getattr(
                 settings,
@@ -87,5 +89,6 @@ class PublishSettings:
         return bool(
             self.youtube_client_id
             and self.youtube_client_secret
+            and self.youtube_refresh_token
             and self.youtube_channel_id
         )
