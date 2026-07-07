@@ -1,4 +1,4 @@
-"""Tests for synced episode/script operations tables."""
+"""Tests for the Episodes operations tab."""
 
 import pytest
 from django.urls import reverse
@@ -6,38 +6,55 @@ from django.urls import reverse
 from apps.episodes.models import Episode, EpisodeStatus
 from apps.scripts.models import Script, ScriptStatus
 from services.admin.scripts_dashboard import ScriptDashboardService
-from services.admin.stats import DashboardStatsService
 
 
 @pytest.mark.django_db
-def test_scripts_tab_lists_same_episodes_as_episodes_today() -> None:
-    episode_with_script = Episode.objects.create(title="Has Script", status=EpisodeStatus.DRAFT)
+def test_list_episodes_returns_all_episodes() -> None:
+    episode_with_script = Episode.objects.create(
+        title="Has Script", status=EpisodeStatus.DRAFT
+    )
     Script.objects.create(
         episode=episode_with_script,
         version=1,
         title="",
         status=ScriptStatus.READY,
     )
-    Episode.objects.create(title="No Script Yet", status=EpisodeStatus.GENERATING_SCRIPT)
+    Episode.objects.create(
+        title="No Script Yet", status=EpisodeStatus.GENERATING_SCRIPT
+    )
 
-    episodes_today = DashboardStatsService().list_episodes_today()
-    scripts = ScriptDashboardService().list_scripts(sync_with_episodes_today=True)
+    rows = ScriptDashboardService().list_episodes()
 
-    assert len(episodes_today) == len(scripts)
-    assert {row["title"] for row in episodes_today} == {
-        row["episode_title"] for row in scripts
-    }
-    assert {row["display_status"] for row in episodes_today} == {
-        row["display_status"] for row in scripts
-    }
+    assert {row["episode_title"] for row in rows} == {"Has Script", "No Script Yet"}
 
 
 @pytest.mark.django_db
-def test_scripts_tab_shows_episode_without_script(admin_client) -> None:
-    Episode.objects.create(title="Pending Script", status=EpisodeStatus.GENERATING_SCRIPT)
+def test_list_episodes_search_filters_by_title() -> None:
+    Episode.objects.create(title="Tech Weekly", status=EpisodeStatus.DRAFT)
+    Episode.objects.create(title="Sports Daily", status=EpisodeStatus.DRAFT)
 
-    response = admin_client.get(reverse("operations:content"), {"view": "scripts"})
+    rows = ScriptDashboardService().list_episodes(search="tech")
+
+    assert {row["episode_title"] for row in rows} == {"Tech Weekly"}
+
+
+@pytest.mark.django_db
+def test_episodes_tab_shows_episode_without_script(admin_client) -> None:
+    Episode.objects.create(
+        title="Pending Script", status=EpisodeStatus.GENERATING_SCRIPT
+    )
+
+    response = admin_client.get(reverse("operations:content"), {"view": "episodes"})
     content = response.content.decode()
 
     assert "Pending Script" in content
     assert "—" in content
+
+
+@pytest.mark.django_db
+def test_episodes_tab_search_box_renders(admin_client) -> None:
+    response = admin_client.get(reverse("operations:content"), {"view": "episodes"})
+    content = response.content.decode()
+
+    assert 'name="q"' in content
+    assert 'placeholder="Search episodes by title..."' in content

@@ -39,7 +39,7 @@ _CONTENT_VIEWS = frozenset(
         "articles",
         "scripts",
         "failed-jobs",
-        "episodes-today",
+        "episodes",
         "fail-log",
     }
 )
@@ -295,8 +295,8 @@ def _content_context(request: HttpRequest) -> dict[str, object]:
         "content_view": content_view,
         "pipeline_stats": {
             "failed_jobs": overview["failed_jobs"],
-            "episodes_today": overview["episodes_generated_today"],
-            "scripts_total": overview["episodes_generated_today"],
+            "episodes_total": overview["episodes_total"],
+            "scripts_total": overview["scripts_total"],
         },
         "articles": service.list_articles(provider_type=provider_type),
         "article_totals": service.article_totals(),
@@ -305,8 +305,12 @@ def _content_context(request: HttpRequest) -> dict[str, object]:
 
     if content_view == "failed-jobs":
         context["failed_jobs"] = stats.list_failed_jobs()
-    elif content_view == "episodes-today":
-        context["episodes_today"] = stats.list_episodes_today()
+    elif content_view == "episodes":
+        episodes_search = request.GET.get("q", "")
+        context["episodes"] = ScriptDashboardService().list_episodes(
+            search=episodes_search
+        )
+        context["episodes_search"] = episodes_search
     elif content_view == "fail-log":
         log_service = LogQueryService()
         context["fail_log_entries"] = log_service.search(
@@ -338,7 +342,6 @@ def _scripts_tab_context(request: HttpRequest) -> dict[str, object]:
         "scripts_episode": episode,
         "scripts": ScriptDashboardService().list_scripts(
             episode_id=episode_id,
-            sync_with_episodes_today=True,
         ),
         "manual_form_defaults": form_defaults,
     }
@@ -390,7 +393,7 @@ def _handle_content_post(request: HttpRequest) -> dict[str, str]:
             return {
                 "message": f'Episode "{title}" deleted.',
                 "type": content_filter,
-                "content_view": request.POST.get("content_view", "episodes-today"),
+                "content_view": request.POST.get("content_view", "episodes"),
             }
 
         if action == "delete_failed_job":
@@ -665,7 +668,7 @@ def tts_generation(request: HttpRequest) -> HttpResponse:
             request,
             "No ready script for this episode yet. Generate or add a manual script first.",
         )
-        return redirect(f"{reverse('operations:content')}?view=episodes-today")
+        return redirect(f"{reverse('operations:content')}?view=episodes")
 
     workspace = ContentLibraryService().script_workspace()
     script_id = workspace.get("latest_ready_script_id", "")
@@ -720,7 +723,8 @@ def dashboard_insights(request: HttpRequest) -> HttpResponse:
     tab = request.GET.get("tab", "failed-jobs")
     view_map = {
         "failed-jobs": "failed-jobs",
-        "episodes-today": "episodes-today",
+        "episodes-today": "episodes",
+        "episodes": "episodes",
     }
     view = view_map.get(tab, "failed-jobs")
     return redirect(f"{reverse('operations:content')}?view={view}")

@@ -355,22 +355,22 @@ def test_delete_episode_from_content_ui(admin_client) -> None:
         {
             "content_action": "delete_episode",
             "episode_id": str(episode.id),
-            "content_view": "episodes-today",
+            "content_view": "episodes",
             "type": "all",
         },
     )
     assert response.status_code == 302
-    assert "view=episodes-today" in response.url
+    assert "view=episodes" in response.url
     assert not Episode.objects.filter(pk=episode.id).exists()
     assert not Script.objects.filter(pk=script.id).exists()
 
 
 @pytest.mark.django_db
-def test_episodes_today_view_has_delete_not_admin(admin_client) -> None:
-    Episode.objects.create(title="Today Ep", status=EpisodeStatus.DRAFT)
+def test_episodes_view_has_delete_not_admin(admin_client) -> None:
+    Episode.objects.create(title="Any Ep", status=EpisodeStatus.DRAFT)
     response = admin_client.get(
         reverse("operations:content"),
-        {"view": "episodes-today"},
+        {"view": "episodes"},
     )
     content = response.content.decode()
     assert "Delete" in content
@@ -384,6 +384,32 @@ def test_queue_script_generation_requires_selection(news_source: NewsSource) -> 
     service = ContentLibraryService()
     with pytest.raises(ContentLibraryError):
         service.queue_script_generation(episode_title="")
+
+
+@pytest.mark.django_db
+def test_queue_script_generation_creates_new_episode(
+    news_source: NewsSource,
+    mock_job_dispatch,
+) -> None:
+    del mock_job_dispatch
+    existing = Episode.objects.create(title="Old Draft", status=EpisodeStatus.DRAFT)
+    Article.objects.create(
+        title="Source",
+        source=news_source,
+        url="https://example.com/source",
+        content_hash="source-hash",
+        status=ArticleStatus.COLLECTED,
+        selected_for_script=True,
+    )
+
+    service = ContentLibraryService()
+    episode_id, _ = service.queue_script_generation(episode_title="Brand New Show")
+
+    assert episode_id != str(existing.id)
+    assert Episode.objects.filter(pk=existing.id).exists()
+    new_episode = Episode.objects.get(pk=episode_id)
+    assert new_episode.title == "Brand New Show"
+    assert Episode.objects.count() == 2
 
 
 @pytest.mark.django_db

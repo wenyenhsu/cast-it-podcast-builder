@@ -55,6 +55,7 @@ class DashboardStatsService:
             .count(),
             "published_episodes": PublishedEpisode.objects.count(),
             "scripts_total": Script.objects.count(),
+            "episodes_total": Episode.objects.count(),
             "provider_health": provider_health,
         }
 

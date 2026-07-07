@@ -22,6 +22,11 @@
 
 <ul class="nav nav-tabs monitor-tabs mb-4" role="tablist">
   <li class="nav-item" role="presentation">
+    <a class="nav-link{% if content_view == 'episodes' %} active{% endif %}" href="{% url 'operations:content' %}?view=episodes" role="tab">
+      <i class="bi bi-collection-play me-1"></i>Episodes
+    </a>
+  </li>
+  <li class="nav-item" role="presentation">
     <a class="nav-link{% if content_view == 'articles' %} active{% endif %}" href="{% url 'operations:content' %}{% if content_filter != 'all' %}?type={{ content_filter }}{% endif %}" role="tab">
       <i class="bi bi-journal-text me-1"></i>Articles
     </a>
@@ -29,13 +34,6 @@
   <li class="nav-item" role="presentation">
     <a class="nav-link{% if content_view == 'scripts' %} active{% endif %}" href="{% url 'operations:content' %}?view=scripts" role="tab">
       <i class="bi bi-file-earmark-text me-1"></i>Scripts
-      {% if pipeline_stats.scripts_total %}<span class="badge text-bg-secondary ms-1">{{ pipeline_stats.scripts_total }}</span>{% endif %}
-    </a>
-  </li>
-  <li class="nav-item" role="presentation">
-    <a class="nav-link{% if content_view == 'episodes-today' %} active{% endif %}" href="{% url 'operations:content' %}?view=episodes-today" role="tab">
-      <i class="bi bi-calendar-day me-1"></i>Episodes Today
-      {% if pipeline_stats.episodes_today %}<span class="badge text-bg-secondary ms-1">{{ pipeline_stats.episodes_today }}</span>{% endif %}
     </a>
   </li>
   <li class="nav-item" role="presentation">
@@ -349,8 +347,8 @@
 </script>
 {% elif content_view == "failed-jobs" %}
   {% include "operations/partials/content_failed_jobs.html" %}
-{% elif content_view == "episodes-today" %}
-  {% include "operations/partials/content_episodes_today.html" %}
+{% elif content_view == "episodes" %}
+  {% include "operations/partials/content_episodes.html" %}
 {% elif content_view == "scripts" %}
   {% include "operations/partials/content_scripts.html" %}
 {% elif content_view == "fail-log" %}

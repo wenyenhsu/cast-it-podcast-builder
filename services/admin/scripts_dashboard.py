@@ -30,10 +30,23 @@ class ScriptDashboardService:
             for script in scripts
         ]
 
+    def list_episodes(self, *, search: str = "") -> list[dict[str, Any]]:
+        """List all episodes as script rows, optionally filtered by title search."""
+        episodes = Episode.objects.all()
+        term = (search or "").strip()
+        if term:
+            episodes = episodes.filter(title__icontains=term)
+        return self._list_episode_rows(episodes.order_by("-updated_at"))
+
     def _list_episode_rows(self, episodes) -> list[dict[str, Any]]:
         rows: list[dict[str, Any]] = []
         for episode in episodes.prefetch_related("scripts__segments"):
-            latest = episode.scripts.order_by("-version").first()
+            latest = (
+                episode.scripts.exclude(status=ScriptStatus.FAILED)
+                .order_by("-version")
+                .first()
+                or episode.scripts.order_by("-version").first()
+            )
             rows.append(self._serialize_script_row(latest, episode))
         return rows
 

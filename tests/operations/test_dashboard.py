@@ -326,7 +326,7 @@ def test_content_pipeline_views(admin_client) -> None:
     assert failed.status_code == 200
     assert "boom" in failed.content.decode()
 
-    today = admin_client.get(reverse("operations:content"), {"view": "episodes-today"})
+    today = admin_client.get(reverse("operations:content"), {"view": "episodes"})
     assert today.status_code == 200
     assert "Today Ep" in today.content.decode()
     assert "Audio Ep" in today.content.decode()
@@ -341,4 +341,4 @@ def test_dashboard_stat_cards_link_to_content(admin_client) -> None:
     response = admin_client.get(reverse("operations:dashboard"))
     content = response.content.decode()
     assert "view=failed-jobs" in content
-    assert "view=episodes-today" in content
+    assert "view=episodes" in content

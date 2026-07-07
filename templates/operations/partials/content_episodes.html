@@ -1,0 +1,110 @@
+{% load ops_extras %}
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+  <div>
+    <h2 class="h5 mb-1">Episodes</h2>
+    <p class="text-secondary small mb-0">All episodes in the library.</p>
+  </div>
+  <form method="get" class="d-flex gap-2" role="search">
+    <input type="hidden" name="view" value="episodes">
+    <input
+      type="search"
+      name="q"
+      class="form-control form-control-sm"
+      style="min-width: 220px;"
+      value="{{ episodes_search }}"
+      placeholder="Search episodes by title..."
+      aria-label="Search episodes"
+    >
+    <button type="submit" class="btn btn-sm btn-primary">
+      <i class="bi bi-search me-1"></i>Search
+    </button>
+    {% if episodes_search %}
+    <a class="btn btn-sm btn-outline-secondary" href="{% url 'operations:content' %}?view=episodes">Clear</a>
+    {% endif %}
+  </form>
+</div>
+
+<div class="card p-4">
+  {% if episodes %}
+  <div class="table-responsive">
+    <table class="ops-table">
+      <colgroup>
+        <col class="ops-col-episode">
+        <col class="ops-col-status">
+        <col class="ops-col-version">
+        <col class="ops-col-segments">
+        <col class="ops-col-date">
+        <col class="ops-col-actions">
+      </colgroup>
+      <thead>
+        <tr>
+          <th>Episode</th>
+          <th>Status</th>
+          <th>Version</th>
+          <th>Segments</th>
+          <th>Generated</th>
+          <th class="text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for episode in episodes %}
+        <tr>
+          <td>
+            {% if episode.id %}
+            <a href="{% url 'operations:script_detail' episode.id %}" class="article-title-link">
+              {{ episode.episode_title|truncatechars:48 }}
+            </a>
+            {% else %}
+            <span class="fw-semibold">{{ episode.episode_title|truncatechars:48 }}</span>
+            {% endif %}
+          </td>
+          <td class="ops-status-cell">
+            {% include "operations/partials/ops_status_badge.html" with status=episode.display_status %}
+          </td>
+          <td>{% if episode.version %}v{{ episode.version }}{% else %}—{% endif %}</td>
+          <td>{{ episode.segment_count }}</td>
+          <td class="text-secondary text-nowrap">
+            <time datetime="{{ episode.generated_at|default:episode.updated_at|date:'c' }}" title="{{ episode.generated_at|default:episode.updated_at|local_datetime_title }}">
+              {{ episode.generated_at|default:episode.updated_at|local_datetime }}
+            </time>
+          </td>
+          <td class="text-end text-nowrap">
+            <div class="ops-actions-cell">
+              <a class="btn btn-sm btn-outline-primary" href="{% url 'operations:episode_pipeline' episode.episode_id %}">Pipeline</a>
+              {% if episode.can_generate_tts %}
+              <a
+                class="btn btn-sm btn-outline-primary"
+                href="{% url 'operations:tts_generation' %}?script={{ episode.tts_script_id }}"
+              >Generate TTS</a>
+              {% else %}
+              <a class="btn btn-sm btn-outline-secondary" href="#" tabindex="-1" aria-disabled="true" onclick="return false;">Generate TTS</a>
+              {% endif %}
+              <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="content_action" value="delete_episode">
+                <input type="hidden" name="content_view" value="episodes">
+                <input type="hidden" name="type" value="{{ content_filter }}">
+                <input type="hidden" name="episode_id" value="{{ episode.episode_id }}">
+                <button
+                  type="submit"
+                  class="btn btn-sm btn-outline-danger"
+                  onclick="return confirm('Delete episode &quot;{{ episode.episode_title|escapejs }}&quot; and all scripts/audio? This cannot be undone.');"
+                >Delete</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    {% if episodes_search %}
+    No episodes match "{{ episodes_search }}".
+    {% else %}
+    No episodes yet. Select articles in Articles and run Generate Script.
+    {% endif %}
+  </div>
+  {% endif %}
+</div>

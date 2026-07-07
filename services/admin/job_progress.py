@@ -49,6 +49,16 @@ class JobProgressService:
             .first()
         )
 
+    def find_any_active_script_job(self) -> Job | None:
+        return (
+            Job.objects.filter(
+                job_type=JobType.GENERATE_SCRIPT,
+                status__in=ACTIVE_JOB_STATUSES,
+            )
+            .order_by("-created_at")
+            .first()
+        )
+
     def serialize_job(self, job: Job) -> dict[str, Any]:
         return {
             "id": str(job.id),

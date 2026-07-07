@@ -76,3 +76,39 @@ def test_episode_display_status_audio_generated_when_complete() -> None:
 def test_episode_display_status_draft_without_script() -> None:
     episode = Episode.objects.create(title="Empty", status=EpisodeStatus.DRAFT)
     assert episode_display_status(episode) == EpisodeStatus.DRAFT
+
+
+@pytest.mark.django_db
+def test_episode_display_status_script_failed() -> None:
+    episode = Episode.objects.create(title="Failed run", status=EpisodeStatus.DRAFT)
+    Script.objects.create(
+        episode=episode,
+        version=1,
+        title="",
+        status=ScriptStatus.FAILED,
+    )
+    assert episode_display_status(episode) == "script_failed"
+
+
+@pytest.mark.django_db
+def test_episode_display_status_prefers_ready_over_failed_regen() -> None:
+    episode = Episode.objects.create(title="Mixed", status=EpisodeStatus.DRAFT)
+    ready = Script.objects.create(
+        episode=episode,
+        version=1,
+        title="",
+        status=ScriptStatus.READY,
+    )
+    ScriptSegment.objects.create(
+        script=ready,
+        sequence=1,
+        speaker=Speaker.EXPERT,
+        text="Hello world.",
+    )
+    Script.objects.create(
+        episode=episode,
+        version=2,
+        title="",
+        status=ScriptStatus.FAILED,
+    )
+    assert episode_display_status(episode) == "ready_to_audio"

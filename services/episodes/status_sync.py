@@ -53,6 +53,17 @@ def episode_has_complete_audio(episode: Episode) -> bool:
     return ready_count >= segment_count
 
 
+def episode_script_failed(episode: Episode) -> bool:
+    """Return True when the latest script failed and none is ready/approved."""
+    has_usable_script = episode.scripts.filter(
+        status__in=[ScriptStatus.READY, ScriptStatus.APPROVED],
+    ).exists()
+    if has_usable_script:
+        return False
+    latest = episode.scripts.order_by("-version").first()
+    return latest is not None and latest.status == ScriptStatus.FAILED
+
+
 def episode_display_status(episode: Episode) -> str:
     """Map episode workflow state to a UI status key for operations badges."""
     if episode.status == EpisodeStatus.GENERATING_SCRIPT:
@@ -63,6 +74,8 @@ def episode_display_status(episode: Episode) -> str:
         return "ready_to_audio"
     if episode_has_complete_audio(episode):
         return EpisodeStatus.GENERATING_AUDIO
+    if episode_script_failed(episode):
+        return "script_failed"
     return episode.status
 
 

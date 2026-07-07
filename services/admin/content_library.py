@@ -118,9 +118,7 @@ class ContentLibraryService:
             if ready_script is not None:
                 latest_ready_script_id = str(ready_script.id)
         progress_service = JobProgressService()
-        active_script_job: Job | None = None
-        if episode is not None:
-            active_script_job = progress_service.find_active_script_job(str(episode.id))
+        active_script_job = progress_service.find_any_active_script_job()
         return {
             "episode_id": str(episode.id) if episode else "",
             "episode_title": episode.title if episode else "",
@@ -171,21 +169,19 @@ class ContentLibraryService:
         if not title:
             raise ContentLibraryError("Episode name is required.")
 
-        episode = self.ensure_draft_episode()
-        if episode.title != title:
-            episode.title = title
-            episode.save(update_fields=["title", "updated_at"])
-
-        active_job = JobProgressService().find_active_script_job(str(episode.id))
+        active_job = JobProgressService().find_any_active_script_job()
         if active_job is not None:
             raise ContentLibraryError(
                 "Script generation is already running. Wait for it to finish or dismiss the job panel."
             )
 
+        episode = Episode.objects.create(title=title, status=EpisodeStatus.DRAFT)
+
         self.sync_selected_articles_to_draft_episode(episode)
         if episode.articles.count() == 0:
+            episode.delete()
             raise ContentLibraryError(
-                "Draft episode has no linked articles. Save script sources first."
+                "Select at least one article as script source before generating."
             )
 
         job = AdminJobDispatchService().generate_script(str(episode.id))

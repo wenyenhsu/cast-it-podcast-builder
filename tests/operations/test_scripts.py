@@ -177,18 +177,18 @@ def test_tts_generation_for_episode(admin_client) -> None:
 
 
 @pytest.mark.django_db
-def test_episodes_today_lists_generate_tts_button(admin_client) -> None:
+def test_episodes_view_lists_generate_tts_button(admin_client) -> None:
     episode = Episode.objects.create(
         title="Waiting Episode",
         status=EpisodeStatus.GENERATING_SCRIPT,
     )
     response = admin_client.get(
         reverse("operations:content"),
-        {"view": "episodes-today"},
+        {"view": "episodes"},
     )
     content = response.content.decode()
     assert "Generate TTS" in content
-    assert f"episode={episode.id}" in content
+    assert episode.title in content
 
 
 @pytest.mark.django_db
@@ -229,7 +229,7 @@ def test_delete_script_from_scripts_ui(admin_client) -> None:
 
 
 @pytest.mark.django_db
-def test_scripts_list_page(admin_client) -> None:
+def test_episodes_list_page(admin_client) -> None:
     episode = Episode.objects.create(title="Test Episode", status=EpisodeStatus.DRAFT)
     script = Script.objects.create(
         episode=episode,
@@ -246,7 +246,7 @@ def test_scripts_list_page(admin_client) -> None:
 
     response = admin_client.get(
         reverse("operations:content"),
-        {"view": "scripts"},
+        {"view": "episodes"},
     )
     assert response.status_code == 200
     content = response.content.decode()
@@ -256,20 +256,17 @@ def test_scripts_list_page(admin_client) -> None:
 
 
 @pytest.mark.django_db
-def test_scripts_list_filtered_by_episode(admin_client) -> None:
-    episode = Episode.objects.create(title="Filtered Episode", status=EpisodeStatus.DRAFT)
-    other = Episode.objects.create(title="Other Episode", status=EpisodeStatus.DRAFT)
-    Script.objects.create(episode=episode, version=1, title="Target Script")
-    Script.objects.create(episode=other, version=1, title="Other Script")
+def test_episodes_list_filtered_by_search(admin_client) -> None:
+    Episode.objects.create(title="Filtered Episode", status=EpisodeStatus.DRAFT)
+    Episode.objects.create(title="Other Show", status=EpisodeStatus.DRAFT)
 
     response = admin_client.get(
-        reverse("operations:scripts"),
-        {"episode": str(episode.id)},
-        follow=True,
+        reverse("operations:content"),
+        {"view": "episodes", "q": "Filtered"},
     )
     content = response.content.decode()
-    assert "Target Script" in content
-    assert "Other Script" not in content
+    assert "Filtered Episode" in content
+    assert "Other Show" not in content
 
 
 @pytest.mark.django_db
