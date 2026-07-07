@@ -1,0 +1,32 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "datify-lp",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "BROWSER=none",
+        "npm",
+        "start",
+        "--prefix",
+        "/Users/shusei/workspace/Datify/LP/landing-page"
+      ],
+      "port": 3000,
+      "autoPort": true
+    },
+    {
+      "name": "portfolio-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--prefix",
+        "/Users/shusei/workspace/portfolio",
+        "--",
+        "-p",
+        "3100"
+      ],
+      "port": 3100
+    }
+  ]
+}
