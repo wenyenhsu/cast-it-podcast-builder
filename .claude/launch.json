@@ -2,6 +2,17 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "cast-it-pages-preview",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "preview:pages",
+        "--prefix",
+        "/Users/shusei/workspace/cast-it-frontend"
+      ],
+      "port": 4173
+    },
+    {
       "name": "cast-it-frontend",
       "runtimeExecutable": "npm",
       "runtimeArgs": [
