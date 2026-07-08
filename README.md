@@ -323,6 +323,65 @@ Each step is trackable, retryable, resumable, and cancelable via the workflow en
 
 ---
 
+## Article Tagging (Fixed Taxonomy)
+
+Articles are labeled two ways during the intelligence pipeline:
+
+- **Category** — one broad bucket per article (AI, Programming, Cloud, …) via `templates/prompts/classification.md`.
+- **Tags** — **1 to 3 tags chosen from a fixed tech taxonomy** (`ALLOWED_TAGS` in `domain/intelligence/constants.py`: Algorithms, LLM, Claude Fable, Machine Learning, Data Science, Infrastructure, Networking, Security, Privacy, UI/UX, Web Development, Mobile, Cloud, DevOps, Databases, Programming Languages, Open Source, Hardware, Robotics, Startups).
+
+Rules enforced by `services/intelligence/keyword_service.py`:
+
+- The LLM must pick from the allowed list; anything else is dropped (`canonicalize_tags`).
+- An article's tags are **replaced** on each extraction, capped at 3.
+- RSS/source-provided tags are kept only when they match the taxonomy.
+
+**Adding a new tag** is a one-line change: append it to `ALLOWED_TAGS`. The next
+`publish_supabase` run upserts the full taxonomy into Supabase (`sync_taxonomy()`),
+so the two sides never drift. Removed tags are kept in Supabase because published
+episodes may still reference them.
+
+---
+
+## Listener Distribution (Supabase)
+
+The listener frontend ([cast-it-frontend](https://github.com/shuseiyokoi/cast-it-frontend))
+does not talk to this Django backend. Generation happens locally; finished episodes
+are pushed to a Supabase project that serves the public app ("local factory, cloud shelf").
+
+```
+Local pipeline (this repo)                    Supabase                     Listener app
+────────────────────────────                  ─────────────────────────    ─────────────────────
+generate episode + final audio ──ㅤpublishㅤ─▶ episodes / episode_tags  ─▶  personalized feed
+                                              storage: episode-audio   ─▶  audio streaming
+                                              activity_events          ◀─  play / progress events
+                                              profiles + auth               login / signup
+```
+
+```bash
+make publish-supabase   # sync taxonomy + push all episodes with final audio
+# or a single episode:
+docker compose exec web python manage.py publish_supabase --episode-id <uuid>
+```
+
+What it does (`services/publish/supabase_publisher.py`):
+
+1. Upserts the tag taxonomy into `tags`.
+2. Uploads the final MP3 to the public `episode-audio` storage bucket.
+3. Upserts the episode row (title, summary, duration, audio URL, category).
+4. Replaces the episode's `episode_tags` with the top 3 taxonomy tags across its articles.
+
+Schema lives in `supabase/migrations/` (apply with `supabase db push`). Interest-based
+ranking is done in-database by `personal_feed(p_session_id)`: it scores each tag by the
+caller's listening time (30s heartbeats, completes, plays from `activity_events`) and
+orders episodes by the summed score of their tags — for logged-in users (`auth.uid()`)
+and anonymous sessions alike.
+
+Required env vars (see `.env.example`): `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`,
+`SUPABASE_AUDIO_BUCKET`.
+
+---
+
 ## End-to-End Usage
 
 Two ways to run the pipeline:

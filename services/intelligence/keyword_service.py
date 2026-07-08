@@ -104,10 +104,15 @@ class KeywordExtractionService:
         ArticleTag.objects.filter(article=article).delete()
         for keyword in keywords:
             slug = slugify(keyword) or keyword.lower().replace(" ", "-")
-            tag, _ = Tag.objects.get_or_create(
+            tag, created = Tag.objects.get_or_create(
                 slug=slug,
                 defaults={"name": keyword},
             )
+            if not created and tag.name != keyword:
+                # Legacy free-form tag with the same slug: adopt the
+                # canonical taxonomy name.
+                tag.name = keyword
+                tag.save(update_fields=["name"])
             ArticleTag.objects.get_or_create(article=article, tag=tag)
 
 
