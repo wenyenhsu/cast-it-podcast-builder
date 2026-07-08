@@ -7,9 +7,13 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from django.conf import settings as django_settings
+from django.utils.text import slugify
 
 from apps.audio.models import AudioAsset, AudioAssetStatus
 from apps.episodes.models import Episode
+from domain.intelligence.constants import ALLOWED_TAGS
+
+TAXONOMY_SLUGS = {slugify(tag) for tag in ALLOWED_TAGS}
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +22,8 @@ class HTTPClientProtocol(Protocol):
     """Protocol for HTTP clients used by SupabasePublisher."""
 
     def post(self, url: str, **kwargs: Any) -> Any: ...
+
+    def delete(self, url: str, **kwargs: Any) -> Any: ...
 
 
 @dataclass(frozen=True)
@@ -78,6 +84,29 @@ class SupabasePublisher:
             **extra,
         }
 
+    def sync_taxonomy(self) -> int:
+        """Upsert ALLOWED_TAGS into Supabase so the taxonomy never drifts.
+
+        Upsert-only: tags removed from the code list are kept in Supabase
+        because published episodes may still reference them.
+        """
+        rows = [{"slug": slugify(tag), "name": tag} for tag in ALLOWED_TAGS]
+        response = self._http.post(
+            f"{self._settings.url}/rest/v1/tags?on_conflict=slug",
+            headers=self._headers(
+                **{
+                    "Content-Type": "application/json",
+                    "Prefer": "resolution=merge-duplicates,return=minimal",
+                }
+            ),
+            json=rows,
+        )
+        if response.status_code >= 400:
+            raise RuntimeError(
+                f"Tag taxonomy sync failed ({response.status_code}): {response.text}"
+            )
+        return len(rows)
+
     def final_audio_asset(self, episode: Episode) -> AudioAsset | None:
         return (
             AudioAsset.objects.filter(
@@ -109,6 +138,7 @@ class SupabasePublisher:
 
         audio_url = self._upload_audio(asset)
         self._upsert_episode(episode, asset, audio_url)
+        self._replace_episode_tags(episode)
 
         logger.info(
             "Episode published to Supabase",
@@ -142,6 +172,53 @@ class SupabasePublisher:
         return (
             f"{self._settings.url}/storage/v1/object/public/{bucket}/{object_path}"
         )
+
+    def _top_tags(self, episode: Episode, limit: int = 3) -> list[dict[str, str]]:
+        """Most common taxonomy tags across the episode's articles."""
+        counts = Counter()
+        names: dict[str, str] = {}
+        for article in episode.articles.prefetch_related("tags"):
+            for tag in article.tags.all():
+                # Skip legacy free-form tags that predate the taxonomy;
+                # Supabase only knows taxonomy slugs.
+                if tag.slug not in TAXONOMY_SLUGS:
+                    continue
+                counts[tag.slug] += 1
+                names[tag.slug] = tag.name
+        return [
+            {"slug": slug, "name": names[slug]}
+            for slug, _ in counts.most_common(limit)
+        ]
+
+    def _replace_episode_tags(self, episode: Episode) -> None:
+        tags = self._top_tags(episode)
+        delete = self._http.delete(
+            f"{self._settings.url}/rest/v1/episode_tags?episode_id=eq.{episode.id}",
+            headers=self._headers(),
+        )
+        if delete.status_code >= 400:
+            raise RuntimeError(
+                f"Episode tag cleanup failed ({delete.status_code}): {delete.text}"
+            )
+        if not tags:
+            return
+        response = self._http.post(
+            f"{self._settings.url}/rest/v1/episode_tags",
+            headers=self._headers(
+                **{
+                    "Content-Type": "application/json",
+                    "Prefer": "resolution=merge-duplicates,return=minimal",
+                }
+            ),
+            json=[
+                {"episode_id": str(episode.id), "tag_slug": tag["slug"]}
+                for tag in tags
+            ],
+        )
+        if response.status_code >= 400:
+            raise RuntimeError(
+                f"Episode tag upsert failed ({response.status_code}): {response.text}"
+            )
 
     def _primary_category(self, episode: Episode) -> str:
         categories = Counter(
