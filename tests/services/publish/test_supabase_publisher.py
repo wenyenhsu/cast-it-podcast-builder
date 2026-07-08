@@ -23,8 +23,12 @@ class FakeHTTPClient:
         self.requests: list[dict] = []
 
     def post(self, url: str, **kwargs) -> FakeResponse:
-        self.requests.append({"url": url, **kwargs})
+        self.requests.append({"method": "POST", "url": url, **kwargs})
         return FakeResponse(200)
+
+    def delete(self, url: str, **kwargs) -> FakeResponse:
+        self.requests.append({"method": "DELETE", "url": url, **kwargs})
+        return FakeResponse(204)
 
 
 @pytest.fixture
@@ -67,7 +71,7 @@ def test_publish_episode_uploads_audio_and_upserts_row(
 
     result = publisher.publish_episode(episode_with_audio)
 
-    upload, upsert = http.requests
+    upload, upsert, tag_delete = http.requests
     assert upload["url"] == (
         "https://example.supabase.co/storage/v1/object/"
         "episode-audio/audio/final.mp3"
@@ -80,6 +84,8 @@ def test_publish_episode_uploads_audio_and_upserts_row(
     assert row["id"] == str(episode_with_audio.id)
     assert row["audio_url"] == result.audio_url
     assert result.audio_url.endswith("/public/episode-audio/audio/final.mp3")
+    assert tag_delete["method"] == "DELETE"
+    assert f"episode_id=eq.{episode_with_audio.id}" in tag_delete["url"]
 
 
 @pytest.mark.django_db
@@ -100,3 +106,51 @@ def test_settings_validation_requires_url_and_key() -> None:
             settings=SupabaseSettings(url="", service_role_key="", audio_bucket="b"),
             http_client=FakeHTTPClient(),
         )
+
+
+@pytest.mark.django_db
+def test_episode_tags_pushed_from_taxonomy_articles(
+    supabase_settings: SupabaseSettings,
+    episode_with_audio: Episode,
+) -> None:
+    from apps.articles.models import Article, ArticleTag, Tag
+    from apps.episodes.models import EpisodeArticle
+    from apps.providers.models import NewsSource, ProviderType
+
+    source = NewsSource.objects.create(name="s", provider_type=ProviderType.RSS)
+    article = Article.objects.create(
+        source=source, title="a", url="https://x/a", content="c"
+    )
+    EpisodeArticle.objects.create(episode=episode_with_audio, article=article)
+    for slug, name in [("llm", "LLM"), ("security", "Security"), ("legacy-junk", "Legacy Junk")]:
+        tag = Tag.objects.create(slug=slug, name=name)
+        ArticleTag.objects.create(article=article, tag=tag)
+
+    http = FakeHTTPClient()
+    SupabasePublisher(settings=supabase_settings, http_client=http).publish_episode(
+        episode_with_audio
+    )
+
+    tag_insert = http.requests[-1]
+    assert tag_insert["method"] == "POST"
+    assert tag_insert["url"].endswith("/rest/v1/episode_tags")
+    slugs = {r["tag_slug"] for r in tag_insert["json"]}
+    assert slugs == {"llm", "security"}  # legacy tag filtered out
+
+
+def test_sync_taxonomy_upserts_all_allowed_tags(
+    supabase_settings: SupabaseSettings,
+) -> None:
+    from domain.intelligence.constants import ALLOWED_TAGS
+
+    http = FakeHTTPClient()
+    count = SupabasePublisher(
+        settings=supabase_settings, http_client=http
+    ).sync_taxonomy()
+
+    assert count == len(ALLOWED_TAGS)
+    request = http.requests[-1]
+    assert request["url"].endswith("/rest/v1/tags?on_conflict=slug")
+    names = {row["name"] for row in request["json"]}
+    assert names == set(ALLOWED_TAGS)
+    assert {row["slug"] for row in request["json"]} >= {"llm", "claude-fable", "uiux"}

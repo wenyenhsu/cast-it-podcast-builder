@@ -8,7 +8,7 @@ from django.utils import timezone
 from django.utils.text import slugify
 
 from apps.articles.models import Article, ArticleTag, Tag
-from domain.intelligence.constants import MAX_KEYWORDS, MIN_KEYWORDS
+from domain.intelligence.constants import ALLOWED_TAGS, MAX_KEYWORDS, MIN_KEYWORDS
 from domain.intelligence.dtos import KeywordDTO
 from domain.llm.dtos import LLMRequest
 from services.intelligence.parsers import parse_keywords
@@ -57,6 +57,7 @@ class KeywordExtractionService:
                 "summary": article.summary or article.content[:500],
                 "min_keywords": str(MIN_KEYWORDS),
                 "max_keywords": str(MAX_KEYWORDS),
+                "allowed_tags": ", ".join(ALLOWED_TAGS),
             },
         )
         system_prompt = self._prompt_builder.build_system_prompt(
@@ -72,6 +73,7 @@ class KeywordExtractionService:
             minimum=MIN_KEYWORDS,
             maximum=MAX_KEYWORDS,
         )
+        keywords = canonicalize_tags(keywords)[:MAX_KEYWORDS]
         extracted_at = timezone.now()
 
         self._save_keywords(article, keywords)
@@ -97,6 +99,9 @@ class KeywordExtractionService:
 
     @staticmethod
     def _save_keywords(article: Article, keywords: list[str]) -> None:
+        # The taxonomy tags are authoritative: drop whatever the article had
+        # (e.g. raw RSS categories) and keep only the extracted tags.
+        ArticleTag.objects.filter(article=article).delete()
         for keyword in keywords:
             slug = slugify(keyword) or keyword.lower().replace(" ", "-")
             tag, _ = Tag.objects.get_or_create(
@@ -104,3 +109,16 @@ class KeywordExtractionService:
                 defaults={"name": keyword},
             )
             ArticleTag.objects.get_or_create(article=article, tag=tag)
+
+
+_ALLOWED_BY_KEY = {tag.lower(): tag for tag in ALLOWED_TAGS}
+
+
+def canonicalize_tags(candidates: list[str]) -> list[str]:
+    """Map free-form tag candidates onto the fixed taxonomy, dropping the rest."""
+    canonical: list[str] = []
+    for candidate in candidates:
+        match = _ALLOWED_BY_KEY.get(candidate.strip().lower())
+        if match and match not in canonical:
+            canonical.append(match)
+    return canonical
