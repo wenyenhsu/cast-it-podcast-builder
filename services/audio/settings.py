@@ -1,9 +1,10 @@
 """TTS application settings."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from django.conf import settings
 
+from apps.scripts.models import Speaker
 from domain.audio.config import TTSProviderConfig
 
 
@@ -19,6 +20,7 @@ class TTSSettings:
     max_text_length: int
     words_per_minute: int
     storage_subdir: str
+    persona_voices: dict[str, str] = field(default_factory=dict)
 
     @classmethod
     def from_django_settings(cls) -> "TTSSettings":
@@ -36,6 +38,15 @@ class TTSSettings:
             max_text_length=int(getattr(settings, "TTS_MAX_TEXT_LENGTH", 5000)),
             words_per_minute=int(getattr(settings, "TTS_WORDS_PER_MINUTE", 150)),
             storage_subdir=getattr(settings, "AUDIO_STORAGE_SUBDIR", "audio"),
+            persona_voices={
+                Speaker.INTRO: getattr(settings, "CHATTERBOX_VOICE_INTRO", ""),
+                Speaker.EXPERT: getattr(settings, "CHATTERBOX_VOICE_EXPERT", ""),
+                Speaker.BEGINNER: getattr(
+                    settings,
+                    "CHATTERBOX_VOICE_BEGINNER",
+                    "",
+                ),
+            },
         )
 
     def to_provider_config(self) -> TTSProviderConfig:

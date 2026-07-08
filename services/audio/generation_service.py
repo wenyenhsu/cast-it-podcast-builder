@@ -217,6 +217,8 @@ class AudioGenerationService:
                 "episode_id": str(episode_id),
                 "audio_asset_id": str(asset.id),
                 "provider": self._provider.provider_name,
+                "speaker": segment.speaker,
+                "provider_voice_id": voice_profile.provider_voice_id,
                 "voice": voice_profile.name,
                 "duration": asset.duration,
                 "generation_time": asset.generation_time,
