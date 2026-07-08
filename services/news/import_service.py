@@ -10,6 +10,7 @@ from django.utils.text import slugify
 from apps.articles.models import Article, ArticleStatus, ArticleTag, Tag
 from apps.providers.models import NewsSource, ProviderType
 from domain.dtos.article import ArticleDTO
+from domain.intelligence.constants import MAX_KEYWORDS
 from services.knowledge.article_indexing import index_article_best_effort
 from services.news.content_hash import ContentHashService
 from services.news.duplicate_detector import DuplicateDetector
@@ -177,14 +178,15 @@ class NewsImportService:
 
     @staticmethod
     def _save_tags(article: Article, tags: list[str]) -> None:
-        for tag_name in tags:
-            normalized = tag_name.strip()
-            if not normalized:
-                continue
+        # Source-provided tags (e.g. RSS categories) are free-form; keep only
+        # the ones matching our taxonomy. Keyword extraction later replaces
+        # them with the authoritative 1-3 tags anyway.
+        from services.intelligence.keyword_service import canonicalize_tags
 
-            slug = slugify(normalized) or normalized.lower().replace(" ", "-")
+        for tag_name in canonicalize_tags(tags)[:MAX_KEYWORDS]:
+            slug = slugify(tag_name) or tag_name.lower().replace(" ", "-")
             tag, _ = Tag.objects.get_or_create(
                 slug=slug,
-                defaults={"name": normalized},
+                defaults={"name": tag_name},
             )
             ArticleTag.objects.get_or_create(article=article, tag=tag)

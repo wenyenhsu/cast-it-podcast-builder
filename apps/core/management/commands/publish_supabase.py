@@ -21,6 +21,9 @@ class Command(BaseCommand):
         except ValueError as exc:
             raise CommandError(str(exc)) from exc
 
+        synced = publisher.sync_taxonomy()
+        self.stdout.write(f"Tag taxonomy synced ({synced} tags).")
+
         if options["episode_id"]:
             episodes = list(Episode.objects.filter(id=options["episode_id"]))
             if not episodes:
