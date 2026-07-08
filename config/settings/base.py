@@ -294,6 +294,11 @@ TTS_MAX_TEXT_LENGTH = env.int("TTS_MAX_TEXT_LENGTH", default=5000)
 TTS_WORDS_PER_MINUTE = env.int("TTS_WORDS_PER_MINUTE", default=150)
 AUDIO_STORAGE_SUBDIR = env("AUDIO_STORAGE_SUBDIR", default="audio")
 
+# Supabase (public data shelf for the listener frontend)
+SUPABASE_URL = env("SUPABASE_URL", default="")
+SUPABASE_SERVICE_ROLE_KEY = env("SUPABASE_SERVICE_ROLE_KEY", default="")
+SUPABASE_AUDIO_BUCKET = env("SUPABASE_AUDIO_BUCKET", default="episode-audio")
+
 # Audio Pipeline (FFmpeg)
 AUDIO_OUTPUT_SUBDIR = env("AUDIO_OUTPUT_SUBDIR", default="audio")
 AUDIO_DEFAULT_BITRATE = env.int("AUDIO_DEFAULT_BITRATE", default=192)

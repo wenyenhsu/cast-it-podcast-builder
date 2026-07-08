@@ -2,6 +2,7 @@
         shell bash migrate migrations createsuperuser collectstatic \
         db-shell redis-cli reset-db \
         import-news plan-episode generate-script generate-audio publish \
+        publish-supabase \
         youtube-token test test-fast
 
 DC = docker compose
@@ -94,6 +95,9 @@ generate-audio:
 publish:
 	$(DC) exec web python manage.py shell -c \
 		"from apps.scheduler.tasks.publish import publish_episode_scheduled; publish_episode_scheduled()"
+
+publish-supabase:
+	$(DC) exec web python manage.py publish_supabase
 
 # ── Auth tokens ────────────────────────────────────────────────────────────────
 
