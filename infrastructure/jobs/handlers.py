@@ -4,7 +4,8 @@ import logging
 from typing import Any
 
 from apps.articles.models import Article
-from apps.episodes.models import Episode
+from apps.audio.models import AudioAsset, AudioAssetStatus
+from apps.episodes.models import Episode, EpisodeStatus
 from apps.scheduler.models import Job
 from apps.scripts.models import Script, ScriptStatus
 from domain.jobs.exceptions import JobPermanentError, JobTransientError
@@ -111,6 +112,30 @@ class EpisodePlanningHandler(BaseJobHandler):
         }
 
 
+def _resolve_episode_for_script(job: Job) -> Episode:
+    """Payload episode, or (for scheduled runs) the newest draft without a script."""
+    episode_id = job.payload.get("episode_id")
+    if episode_id:
+        return Episode.objects.get(pk=episode_id)
+
+    from django.db.models import Exists, OuterRef
+
+    ready_script = Script.objects.filter(
+        episode=OuterRef("pk"),
+        status__in=[ScriptStatus.READY, ScriptStatus.APPROVED],
+    )
+    episode = (
+        Episode.objects.filter(status=EpisodeStatus.DRAFT)
+        .annotate(has_script=Exists(ready_script))
+        .filter(has_script=False)
+        .order_by("-created_at")
+        .first()
+    )
+    if episode is None:
+        raise JobPermanentError("No draft episode awaiting a script.")
+    return episode
+
+
 class GenerateScriptHandler(BaseJobHandler):
     job_type = "generate_script"
     queue = QUEUE_LLM
@@ -119,8 +144,7 @@ class GenerateScriptHandler(BaseJobHandler):
         from services.llm.service import LLMService
         from services.scripts.generation_service import ScriptGenerationService
 
-        episode_id = _require_payload_key(job, "episode_id")
-        episode = Episode.objects.get(pk=episode_id)
+        episode = _resolve_episode_for_script(job)
         JobService().update_progress(job, 5)
         try:
             script = ScriptGenerationService(LLMService()).generate(episode, job=job)
@@ -138,24 +162,47 @@ def _resolve_script_for_audio(job: Job) -> Script:
 
     from services.scripts.version_service import ScriptVersionService
 
-    episode_id = _require_payload_key(job, "episode_id")
-    active = ScriptVersionService().get_active_script(episode_id)
-    if active is not None:
-        return Script.objects.select_related("episode").get(pk=active.id)
+    episode_id = job.payload.get("episode_id")
+    if episode_id:
+        active = ScriptVersionService().get_active_script(episode_id)
+        if active is not None:
+            return Script.objects.select_related("episode").get(pk=active.id)
 
+        script = (
+            Script.objects.filter(
+                episode_id=episode_id,
+                status__in=[ScriptStatus.READY, ScriptStatus.APPROVED],
+            )
+            .order_by("-version")
+            .first()
+        )
+        if script is None:
+            raise JobPermanentError(
+                f"No ready script found for episode {episode_id}."
+            )
+        return Script.objects.select_related("episode").get(pk=script.id)
+
+    # Scheduled run: newest ready script whose episode has no final audio yet.
+    from django.db.models import Exists, OuterRef
+
+    final_audio = AudioAsset.objects.filter(
+        episode=OuterRef("episode_id"),
+        is_final_episode_audio=True,
+        status=AudioAssetStatus.READY,
+    )
     script = (
         Script.objects.filter(
-            episode_id=episode_id,
             status__in=[ScriptStatus.READY, ScriptStatus.APPROVED],
         )
-        .order_by("-version")
+        .annotate(has_final_audio=Exists(final_audio))
+        .filter(has_final_audio=False)
+        .select_related("episode")
+        .order_by("-created_at")
         .first()
     )
     if script is None:
-        raise JobPermanentError(
-            f"No ready script found for episode {episode_id}."
-        )
-    return Script.objects.select_related("episode").get(pk=script.id)
+        raise JobPermanentError("No ready script awaiting audio.")
+    return script
 
 
 class GenerateAudioHandler(BaseJobHandler):
@@ -174,10 +221,20 @@ class GenerateAudioHandler(BaseJobHandler):
             results = AudioGenerationService().generate_for_script(script)
         except TTSUnavailable as exc:
             raise JobTransientError(str(exc)) from exc
-        return {
+
+        output: dict[str, Any] = {
             "script_id": str(script_id),
             "segment_count": len(results),
         }
+        if job.payload.get("scheduled"):
+            # Scheduled runs go straight to the final stitched episode so the
+            # downstream publish step has audio to ship.
+            from services.audio.pipeline.service import AudioPipelineService
+
+            pipeline_result = AudioPipelineService().process_episode(script.episode)
+            output["output_path"] = pipeline_result.output_path
+            output["duration_seconds"] = pipeline_result.duration_seconds
+        return output
 
 
 class RunAudioPipelineHandler(BaseJobHandler):
