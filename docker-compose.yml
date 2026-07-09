@@ -4,6 +4,7 @@
 services:
   db:
     image: pgvector/pgvector:pg16
+    restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-cast_it}
       POSTGRES_USER: ${POSTGRES_USER:-cast_it}
@@ -25,6 +26,7 @@ services:
 
   redis:
     image: redis:7-alpine
+    restart: unless-stopped
     # No host port — avoids conflicts with a local Redis on 6379.
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -38,6 +40,7 @@ services:
       dockerfile: docker/Dockerfile
       target: development
     command: web
+    restart: unless-stopped
     env_file:
       - .env
     environment:
@@ -75,6 +78,13 @@ services:
       dockerfile: docker/Dockerfile
       target: development
     command: celery-worker
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A config inspect ping -d celery@$$HOSTNAME --timeout 10"]
+      interval: 60s
+      timeout: 15s
+      retries: 3
+      start_period: 60s
     env_file:
       - .env
     environment:
@@ -102,6 +112,9 @@ services:
       dockerfile: docker/Dockerfile
       target: development
     command: celery-beat
+    restart: unless-stopped
+    healthcheck:
+      disable: true
     env_file:
       - .env
     environment:
