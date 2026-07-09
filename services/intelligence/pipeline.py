@@ -121,7 +121,9 @@ class EpisodePlanningPipeline:
 
     @staticmethod
     def _load_todays_articles() -> list[Article]:
-        today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        today_start = timezone.localtime().replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
         tomorrow_start = today_start + timedelta(days=1)
 
         return list(
