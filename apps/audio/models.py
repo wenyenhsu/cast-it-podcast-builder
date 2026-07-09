@@ -85,6 +85,14 @@ class AudioAsset(DomainModel):
         blank=True,
         related_name="audio_assets",
     )
+    article = models.ForeignKey(
+        "articles.Article",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="chapter_audio_assets",
+        help_text="Set on per-chapter audio: the article this chapter covers.",
+    )
     provider = models.CharField(max_length=100, blank=True, db_index=True)
     voice = models.CharField(max_length=100, blank=True, db_index=True)
     file_path = models.CharField(max_length=500)

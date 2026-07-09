@@ -237,6 +237,10 @@ class AudioPipelineService:
             absolute_path=final_mp3_path,
         )
 
+        from services.audio.pipeline.chapters import ChapterAudioService
+
+        ChapterAudioService(settings=self._settings).build_chapters(episode)
+
         episode.status = EpisodeStatus.COMPLETED
         episode.duration_seconds = asset.duration
         episode.save(update_fields=["status", "duration_seconds", "updated_at"])

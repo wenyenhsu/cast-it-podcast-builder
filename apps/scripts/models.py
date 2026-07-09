@@ -102,6 +102,14 @@ class ScriptSegment(DomainModel):
         on_delete=models.CASCADE,
         related_name="segments",
     )
+    article = models.ForeignKey(
+        "articles.Article",
+        on_delete=models.SET_NULL,
+        related_name="script_segments",
+        null=True,
+        blank=True,
+        help_text="Source article this segment discusses (chaptered generation).",
+    )
     sequence = models.PositiveIntegerField()
     speaker = models.CharField(
         max_length=20,

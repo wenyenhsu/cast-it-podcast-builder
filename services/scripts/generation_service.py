@@ -296,6 +296,8 @@ class ScriptGenerationService:
             usage["total_tokens"] += response.total_tokens or 0
 
             chapter = self._validation.parse_json(response.content)
+            for segment in chapter.segments:
+                segment.article_id = str(article.id)
             merged_segments.extend(chapter.segments)
             if chapter_number == 1:
                 title = chapter.title or title
@@ -362,6 +364,7 @@ class ScriptGenerationService:
             if self._config.validation_config
             else ScriptValidationConfig().words_per_minute
         )
+        article_map = {str(article.id): article for article in articles}
         segments = [
             ScriptSegment(
                 script=script,
@@ -370,6 +373,7 @@ class ScriptGenerationService:
                 voice=segment.voice,
                 emotion=segment.emotion,
                 text=segment.text,
+                article=article_map.get(segment.article_id or ""),
                 pause_before_seconds=segment.pause_before_seconds,
                 pause_after_seconds=segment.pause_after_seconds,
                 estimated_duration_seconds=estimate_segment_duration_seconds(

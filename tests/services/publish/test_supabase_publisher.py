@@ -71,7 +71,7 @@ def test_publish_episode_uploads_audio_and_upserts_row(
 
     result = publisher.publish_episode(episode_with_audio)
 
-    upload, upsert, tag_delete = http.requests
+    upload, upsert, tag_delete, chapter_delete = http.requests
     assert upload["url"] == (
         "https://example.supabase.co/storage/v1/object/"
         "episode-audio/audio/final.mp3"
@@ -86,6 +86,8 @@ def test_publish_episode_uploads_audio_and_upserts_row(
     assert result.audio_url.endswith("/public/episode-audio/audio/final.mp3")
     assert tag_delete["method"] == "DELETE"
     assert f"episode_id=eq.{episode_with_audio.id}" in tag_delete["url"]
+    assert chapter_delete["method"] == "DELETE"
+    assert "/rest/v1/chapters" in chapter_delete["url"]
 
 
 @pytest.mark.django_db
@@ -131,11 +133,75 @@ def test_episode_tags_pushed_from_taxonomy_articles(
         episode_with_audio
     )
 
-    tag_insert = http.requests[-1]
-    assert tag_insert["method"] == "POST"
-    assert tag_insert["url"].endswith("/rest/v1/episode_tags")
+    tag_insert = next(
+        r
+        for r in http.requests
+        if r["method"] == "POST" and r["url"].endswith("/rest/v1/episode_tags")
+    )
     slugs = {r["tag_slug"] for r in tag_insert["json"]}
     assert slugs == {"llm", "security"}  # legacy tag filtered out
+
+
+@pytest.mark.django_db
+def test_chapters_uploaded_and_upserted(
+    supabase_settings: SupabaseSettings,
+    episode_with_audio: Episode,
+    tmp_path: Path,
+) -> None:
+    from apps.articles.models import Article, ArticleTag, Tag
+    from apps.episodes.models import EpisodeArticle
+    from apps.providers.models import NewsSource, ProviderType
+
+    source = NewsSource.objects.create(name="s", provider_type=ProviderType.RSS)
+    article = Article.objects.create(
+        source=source,
+        title="Chapter story",
+        url="https://x/ch",
+        content="c",
+        summary="chapter summary",
+        category="AI",
+    )
+    EpisodeArticle.objects.create(episode=episode_with_audio, article=article)
+    tag = Tag.objects.create(slug="llm", name="LLM")
+    ArticleTag.objects.create(article=article, tag=tag)
+
+    chapter_file = tmp_path / "audio" / "chapter_01.mp3"
+    chapter_file.write_bytes(b"chapter-bytes")
+    chapter_asset = AudioAsset.objects.create(
+        episode=episode_with_audio,
+        article=article,
+        provider="ffmpeg",
+        file_path="audio/chapter_01.mp3",
+        format="mp3",
+        is_final_episode_audio=False,
+        status=AudioAssetStatus.READY,
+        duration=180,
+    )
+
+    http = FakeHTTPClient()
+    SupabasePublisher(settings=supabase_settings, http_client=http).publish_episode(
+        episode_with_audio
+    )
+
+    chapter_upsert = next(
+        r
+        for r in http.requests
+        if r["method"] == "POST" and "/rest/v1/chapters" in r["url"]
+    )
+    row = chapter_upsert["json"][0]
+    assert row["id"] == str(chapter_asset.id)
+    assert row["article_id"] == str(article.id)
+    assert row["title"] == "Chapter story"
+    assert row["audio_url"].endswith("/public/episode-audio/audio/chapter_01.mp3")
+
+    chapter_tags = next(
+        r
+        for r in http.requests
+        if r["method"] == "POST" and r["url"].endswith("/rest/v1/chapter_tags")
+    )
+    assert chapter_tags["json"] == [
+        {"chapter_id": str(chapter_asset.id), "tag_slug": "llm"}
+    ]
 
 
 def test_sync_taxonomy_upserts_all_allowed_tags(

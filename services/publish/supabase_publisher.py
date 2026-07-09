@@ -139,6 +139,7 @@ class SupabasePublisher:
         audio_url = self._upload_audio(asset)
         self._upsert_episode(episode, asset, audio_url)
         self._replace_episode_tags(episode)
+        chapter_count = self._replace_chapters(episode)
 
         logger.info(
             "Episode published to Supabase",
@@ -146,9 +147,106 @@ class SupabasePublisher:
                 "event": "supabase_episode_published",
                 "episode_id": str(episode.id),
                 "audio_url": audio_url,
+                "chapter_count": chapter_count,
             },
         )
         return PublishResult(episode_id=str(episode.id), audio_url=audio_url)
+
+    def chapter_audio_assets(self, episode: Episode) -> list[AudioAsset]:
+        """Per-article chapter MP3s built by the audio pipeline, in order."""
+        return list(
+            AudioAsset.objects.filter(
+                episode=episode,
+                article__isnull=False,
+                script_segment__isnull=True,
+                is_final_episode_audio=False,
+                status=AudioAssetStatus.READY,
+            )
+            .exclude(file_path="")
+            .select_related("article")
+            .prefetch_related("article__tags")
+            .order_by("file_path")  # chapter_01.mp3, chapter_02.mp3, ...
+        )
+
+    def _replace_chapters(self, episode: Episode) -> int:
+        """Upload chapter audio and replace the episode's chapter rows.
+
+        Chapter assets get new ids when an episode is regenerated, so the
+        episode's chapters are replaced wholesale (chapter_tags cascade).
+        """
+        assets = self.chapter_audio_assets(episode)
+
+        delete = self._http.delete(
+            f"{self._settings.url}/rest/v1/chapters?episode_id=eq.{episode.id}",
+            headers=self._headers(),
+        )
+        if delete.status_code >= 400:
+            raise RuntimeError(
+                f"Chapter cleanup failed ({delete.status_code}): {delete.text}"
+            )
+        if not assets:
+            return 0
+
+        rows: list[dict[str, Any]] = []
+        tag_rows: list[dict[str, str]] = []
+        for position, asset in enumerate(assets, start=1):
+            article = asset.article
+            audio_url = self._upload_audio(asset)
+            rows.append(
+                {
+                    "id": str(asset.id),
+                    "episode_id": str(episode.id),
+                    "article_id": str(article.id),
+                    "position": position,
+                    "title": article.title,
+                    "summary": article.summary or "",
+                    "category": article.category or "",
+                    "duration_seconds": asset.duration,
+                    "audio_url": audio_url,
+                    "published_at": (
+                        asset.generated_at.isoformat() if asset.generated_at else None
+                    ),
+                }
+            )
+            for tag in article.tags.all():
+                if tag.slug not in TAXONOMY_SLUGS:
+                    continue
+                tag_rows.append(
+                    {"chapter_id": str(asset.id), "tag_slug": tag.slug}
+                )
+
+        response = self._http.post(
+            f"{self._settings.url}/rest/v1/chapters?on_conflict=id",
+            headers=self._headers(
+                **{
+                    "Content-Type": "application/json",
+                    "Prefer": "resolution=merge-duplicates,return=minimal",
+                }
+            ),
+            json=rows,
+        )
+        if response.status_code >= 400:
+            raise RuntimeError(
+                f"Chapter upsert failed ({response.status_code}): {response.text}"
+            )
+
+        if tag_rows:
+            response = self._http.post(
+                f"{self._settings.url}/rest/v1/chapter_tags",
+                headers=self._headers(
+                    **{
+                        "Content-Type": "application/json",
+                        "Prefer": "resolution=merge-duplicates,return=minimal",
+                    }
+                ),
+                json=tag_rows,
+            )
+            if response.status_code >= 400:
+                raise RuntimeError(
+                    f"Chapter tag upsert failed "
+                    f"({response.status_code}): {response.text}"
+                )
+        return len(rows)
 
     def _upload_audio(self, asset: AudioAsset) -> str:
         local_path = Path(django_settings.MEDIA_ROOT) / asset.file_path

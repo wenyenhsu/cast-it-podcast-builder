@@ -18,6 +18,9 @@ class ScriptSegmentSchema(BaseModel):
     text: str
     pause_before_seconds: float = Field(default=0.0, ge=0)
     pause_after_seconds: float = Field(default=0.0, ge=0)
+    # Set by chaptered generation (never by the LLM): the source article
+    # this segment discusses. Enables per-chapter audio assets.
+    article_id: str | None = Field(default=None, exclude=True)
 
     @field_validator("text")
     @classmethod
