@@ -3,7 +3,7 @@ __pycache__/
 .env
 .venv/
 staticfiles/
-media/
+/media/
 .pytest_cache/
 .coverage
 celerybeat-schedule*
@@ -29,3 +29,4 @@ docker-compose.override.yml
 
 
 launch.json
+episode_*.mp3
