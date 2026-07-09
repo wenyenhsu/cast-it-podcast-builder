@@ -25,7 +25,7 @@ class ScriptPromptConfig:
     max_segments: int = MAX_SEGMENTS
     language: str = DEFAULT_LANGUAGE
     tone: str = DEFAULT_TONE
-    include_intro_outro: bool = False
+    include_intro_outro: bool = True
     prompt_version: str = PROMPT_VERSION
 
 
@@ -116,6 +116,74 @@ class ScriptPromptBuilder:
                 "language": self._config.language,
                 "tone": self._config.tone,
                 "include_intro_outro": str(self._config.include_intro_outro).lower(),
+            },
+        )
+
+    def build_chapter_user_prompt(
+        self,
+        episode_title: str,
+        episode_summary: str,
+        article: Article,
+        *,
+        chapter_number: int,
+        chapter_count: int,
+        all_titles: list[str],
+        rag_context: str = "",
+    ) -> str:
+        """Build a user prompt for one chapter of a multi-article episode."""
+        if chapter_number == 1:
+            position = (
+                "This is the FIRST chapter: open with a short show intro (2 segments) "
+                "that greets listeners and previews all the stories listed above, "
+                "then cover this chapter's article."
+            )
+        elif chapter_number == chapter_count:
+            position = (
+                "This is the LAST chapter: cover this chapter's article, then close "
+                "with a short outro (2 segments) wrapping up the whole episode."
+            )
+        else:
+            position = (
+                "This is a MIDDLE chapter: transition in naturally from the previous "
+                "story and hand off to the next one at the end."
+            )
+
+        story_list = "\n".join(
+            f"{index}. {self._escape(title)}"
+            for index, title in enumerate(all_titles, start=1)
+        )
+        output_schema = json.dumps(
+            {
+                "title": "string",
+                "summary": "string",
+                "segments": [
+                    {
+                        "speaker": "expert",
+                        "voice": "expert_voice",
+                        "emotion": "calm",
+                        "text": "string",
+                        "pause_before_seconds": 0,
+                        "pause_after_seconds": 0,
+                    }
+                ],
+            },
+            indent=2,
+        )
+
+        return self._prompt_builder.build_user_prompt(
+            "podcast_script_chapter_user",
+            {
+                "episode_title": self._escape(episode_title),
+                "episode_summary": self._escape(episode_summary),
+                "language": self._config.language,
+                "tone": self._config.tone,
+                "story_list": story_list,
+                "chapter_number": str(chapter_number),
+                "chapter_count": str(chapter_count),
+                "chapter_position_instructions": position,
+                "articles_block": self._format_articles([article]),
+                "rag_context_block": self._format_rag_context(rag_context),
+                "output_schema": output_schema,
             },
         )
 

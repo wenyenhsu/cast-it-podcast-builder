@@ -1,8 +1,8 @@
 """Script generation configuration constants."""
 
 PROMPT_VERSION = "v1.0.0"
-MIN_SEGMENTS = 6
-MAX_SEGMENTS = 40
+MIN_SEGMENTS = 20
+MAX_SEGMENTS = 80
 MAX_ESTIMATED_DURATION_SECONDS = 25 * 60
 WORDS_PER_MINUTE = 150
 DEFAULT_TONE = "conversational"

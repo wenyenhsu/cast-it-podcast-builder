@@ -2,6 +2,7 @@
 
 import json
 import logging
+import os
 import time
 from collections.abc import Iterator
 from typing import Any, Protocol
@@ -274,6 +275,9 @@ class OllamaProvider(BaseLLMProvider):
                 if request.temperature is not None
                 else self._default_temperature
             ),
+            # Ollama's default context window (often 4096) truncates long
+            # prompts/outputs such as full podcast scripts.
+            "num_ctx": int(os.environ.get("OLLAMA_NUM_CTX", "8192")),
         }
         if request.top_p is not None:
             options["top_p"] = request.top_p

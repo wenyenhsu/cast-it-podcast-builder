@@ -14,7 +14,7 @@ from apps.scripts.models import Script, ScriptSegment, ScriptStatus, ValidationS
 from apps.scheduler.models import Job
 from domain.llm.dtos import LLMRequest
 from domain.scripts.exceptions import ScriptGenerationError, ScriptValidationError
-from domain.scripts.schema import PodcastScriptSchema
+from domain.scripts.schema import PodcastScriptSchema, ScriptSegmentSchema
 from services.scripts.duration_estimator import estimate_segment_duration_seconds
 from services.scripts.prompt_builder import ScriptPromptBuilder, ScriptPromptConfig
 from services.scripts.validation_service import (
@@ -223,6 +223,9 @@ class ScriptGenerationService:
         *,
         rag_result: ScriptRagResult | None = None,
     ) -> PodcastScriptSchema:
+        if len(articles) >= 2:
+            return self._call_llm_chaptered(episode, articles, rag_result=rag_result)
+
         system_prompt = self._prompt_builder.build_system_prompt()
         user_prompt = self._prompt_builder.build_user_prompt(
             episode_title=episode.title,
@@ -244,6 +247,76 @@ class ScriptGenerationService:
             "total_tokens": response.total_tokens,
         }
         return self._validation.parse_json(response.content)
+
+    def _call_llm_chaptered(
+        self,
+        episode: Episode,
+        articles: list[Article],
+        *,
+        rag_result: ScriptRagResult | None = None,
+    ) -> PodcastScriptSchema:
+        """Generate one chapter per article and merge into a single script.
+
+        A single LLM call saturates well below the long-form target length on
+        local models; per-article calls keep each response small enough that
+        the model sustains the requested depth for every story.
+        """
+        system_prompt = self._prompt_builder.build_system_prompt()
+        all_titles = [article.title for article in articles]
+        chapter_count = len(articles)
+
+        merged_segments: list[ScriptSegmentSchema] = []
+        title = episode.title
+        summary = episode.summary
+        usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+
+        for chapter_number, article in enumerate(articles, start=1):
+            user_prompt = self._prompt_builder.build_chapter_user_prompt(
+                episode_title=episode.title,
+                episode_summary=episode.summary,
+                article=article,
+                chapter_number=chapter_number,
+                chapter_count=chapter_count,
+                all_titles=all_titles,
+                rag_context=(
+                    rag_result.context_text
+                    if rag_result and chapter_number == 1
+                    else ""
+                ),
+            )
+            request = LLMRequest(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                json_mode=True,
+                max_tokens=self._config.max_token_budget,
+            )
+            response = self._llm.chat(request)
+            usage["prompt_tokens"] += response.prompt_tokens or 0
+            usage["completion_tokens"] += response.completion_tokens or 0
+            usage["total_tokens"] += response.total_tokens or 0
+
+            chapter = self._validation.parse_json(response.content)
+            merged_segments.extend(chapter.segments)
+            if chapter_number == 1:
+                title = chapter.title or title
+                summary = chapter.summary or summary
+            logger.info(
+                "Script chapter generated",
+                extra={
+                    "event": "script_chapter_generated",
+                    "episode_id": str(episode.id),
+                    "chapter": chapter_number,
+                    "chapter_count": chapter_count,
+                    "segment_count": len(chapter.segments),
+                },
+            )
+
+        self._last_token_usage = usage
+        return PodcastScriptSchema(
+            title=title,
+            summary=summary,
+            segments=merged_segments,
+        )
 
     @transaction.atomic
     def _persist_script(
