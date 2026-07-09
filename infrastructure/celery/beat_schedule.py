@@ -16,6 +16,7 @@ BEAT_TASK_PATHS = {
     "generate_script": "scheduler.tasks.script.generate_script_scheduled",
     "generate_audio": "scheduler.tasks.audio.generate_audio_scheduled",
     "publish_episode": "scheduler.tasks.publish.publish_episode_scheduled",
+    "publish_supabase": "scheduler.tasks.publish.publish_supabase_scheduled",
     "retry_failed_jobs": "scheduler.tasks.monitoring.retry_failed_jobs_scheduled",
     "provider_health_check": (
         "scheduler.tasks.monitoring.provider_health_check_scheduled"
@@ -58,6 +59,11 @@ def build_beat_schedule() -> dict[str, dict[str, object]]:
             "schedule": _cron_from_env("BEAT_EPISODE_PLANNING_CRON", "0 7 * * *"),
             "options": {"queue": "llm"},
         },
+        "daily-script-generation": {
+            "task": BEAT_TASK_PATHS["generate_script"],
+            "schedule": _cron_from_env("BEAT_GENERATE_SCRIPT_CRON", "45 6 * * *"),
+            "options": {"queue": "llm"},
+        },
         "daily-audio-generation": {
             "task": BEAT_TASK_PATHS["generate_audio"],
             "schedule": _cron_from_env("BEAT_GENERATE_AUDIO_CRON", "0 9 * * *"),
@@ -66,6 +72,11 @@ def build_beat_schedule() -> dict[str, dict[str, object]]:
         "daily-publishing": {
             "task": BEAT_TASK_PATHS["publish_episode"],
             "schedule": _cron_from_env("BEAT_PUBLISH_EPISODE_CRON", "0 10 * * *"),
+            "options": {"queue": "publishing"},
+        },
+        "daily-supabase-publish": {
+            "task": BEAT_TASK_PATHS["publish_supabase"],
+            "schedule": _cron_from_env("BEAT_PUBLISH_SUPABASE_CRON", "30 10 * * *"),
             "options": {"queue": "publishing"},
         },
         "failed-job-retry-sweep": {
