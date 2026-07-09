@@ -32,3 +32,16 @@ def publish_episode_scheduled() -> str:
         JobType.PUBLISH_EPISODE,
         payload={"scheduled": True},
     )
+
+
+@shared_task(name="scheduler.tasks.publish.publish_supabase_scheduled")  # type: ignore[untyped-decorator]
+def publish_supabase_scheduled() -> dict[str, int]:
+    """Beat entrypoint that pushes ready episodes to Supabase for the listener app."""
+    from services.publish.supabase_publisher import SupabasePublisher
+
+    publisher = SupabasePublisher()
+    publisher.sync_taxonomy()
+    episodes = publisher.publishable_episodes()
+    for episode in episodes:
+        publisher.publish_episode(episode)
+    return {"published": len(episodes)}
