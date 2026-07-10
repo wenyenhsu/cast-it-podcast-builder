@@ -265,6 +265,13 @@ class ScriptGenerationService:
         all_titles = [article.title for article in articles]
         chapter_count = len(articles)
 
+        # Scale per-chapter depth so the whole episode lands in the
+        # 10-15 minute target regardless of how many stories were planned:
+        # ~48 segments total (~2,400 words) split across the chapters.
+        per_chapter = max(5, min(14, 48 // chapter_count))
+        chapter_min = max(4, per_chapter - 1)
+        chapter_max = per_chapter + 2
+
         merged_segments: list[ScriptSegmentSchema] = []
         title = episode.title
         summary = episode.summary
@@ -283,6 +290,8 @@ class ScriptGenerationService:
                     if rag_result and chapter_number == 1
                     else ""
                 ),
+                chapter_min_segments=chapter_min,
+                chapter_max_segments=chapter_max,
             )
             request = LLMRequest(
                 system_prompt=system_prompt,

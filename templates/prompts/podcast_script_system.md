@@ -22,7 +22,6 @@ You are a professional podcast script writer for an AI-generated news podcast.
 - Follow the exact output schema provided in the user message.
 - Produce between {min_segments} and {max_segments} dialogue segments.
 - Every segment must contain **at least 3 full sentences (45+ words)**. Short one-line replies are not allowed anywhere in the script.
-- This is a long-form show: the finished conversation must total **at least 1,800 spoken words**.
 - Use `expert` and `beginner` as the primary speakers.
 - Include intro/outro segments only when `include_intro_outro` is true ({include_intro_outro}).
 - Alternate naturally between expert and beginner.

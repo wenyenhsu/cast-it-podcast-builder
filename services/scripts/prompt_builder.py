@@ -129,6 +129,8 @@ class ScriptPromptBuilder:
         chapter_count: int,
         all_titles: list[str],
         rag_context: str = "",
+        chapter_min_segments: int = 10,
+        chapter_max_segments: int = 14,
     ) -> str:
         """Build a user prompt for one chapter of a multi-article episode."""
         if chapter_number == 1:
@@ -184,6 +186,8 @@ class ScriptPromptBuilder:
                 "articles_block": self._format_articles([article]),
                 "rag_context_block": self._format_rag_context(rag_context),
                 "output_schema": output_schema,
+                "chapter_min_segments": str(chapter_min_segments),
+                "chapter_max_segments": str(chapter_max_segments),
             },
         )
 
