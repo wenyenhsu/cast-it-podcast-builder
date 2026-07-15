@@ -13,7 +13,6 @@ logger = logging.getLogger(__name__)
 BEAT_TASK_PATHS = {
     "import_news": "scheduler.tasks.import_news.import_news_scheduled",
     "episode_planning": "scheduler.tasks.planning.episode_planning_scheduled",
-    "generate_script": "scheduler.tasks.script.generate_script_scheduled",
     "generate_audio": "scheduler.tasks.audio.generate_audio_scheduled",
     "publish_episode": "scheduler.tasks.publish.publish_episode_scheduled",
     "publish_supabase": "scheduler.tasks.publish.publish_supabase_scheduled",
@@ -57,11 +56,6 @@ def build_beat_schedule() -> dict[str, dict[str, object]]:
         "daily-episode-planning": {
             "task": BEAT_TASK_PATHS["episode_planning"],
             "schedule": _cron_from_env("BEAT_EPISODE_PLANNING_CRON", "0 7 * * *"),
-            "options": {"queue": "llm"},
-        },
-        "daily-script-generation": {
-            "task": BEAT_TASK_PATHS["generate_script"],
-            "schedule": _cron_from_env("BEAT_GENERATE_SCRIPT_CRON", "45 6 * * *"),
             "options": {"queue": "llm"},
         },
         "daily-audio-generation": {

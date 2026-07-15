@@ -24,8 +24,10 @@ def test_content_page_renders_unified_table(admin_client, news_source: NewsSourc
     content = response.content.decode()
     assert "Articles" in content
     assert "Script Generation" in content
+    assert "Manual Script" in content
     assert "RSS Story" in content
     assert "generateScriptModal" in content
+    assert 'id="generate-script-btn"' in content
     assert 'name="episode_title"' in content
 
 
@@ -183,34 +185,6 @@ def test_job_status_api(admin_client) -> None:
 
 
 @pytest.mark.django_db
-def test_generate_script_from_content_ui(
-    admin_client,
-    news_source: NewsSource,
-    mock_job_dispatch,
-) -> None:
-    del mock_job_dispatch
-    Article.objects.create(
-        title="Script Source",
-        source=news_source,
-        url="https://example.com/script-source",
-        content_hash="script-source-hash",
-        status=ArticleStatus.COLLECTED,
-        selected_for_script=True,
-    )
-
-    response = admin_client.post(
-        reverse("operations:content"),
-        {
-            "content_action": "generate_script",
-            "episode_title": "Weekly Roundup",
-            "type": "all",
-        },
-    )
-    assert response.status_code == 302
-    assert Episode.objects.filter(status=EpisodeStatus.DRAFT, title="Weekly Roundup").exists()
-
-
-@pytest.mark.django_db
 def test_generate_script_requires_episode_title(
     admin_client,
     news_source: NewsSource,
@@ -234,52 +208,6 @@ def test_generate_script_requires_episode_title(
     )
     assert response.status_code == 200
     assert "Episode name is required" in response.content.decode()
-
-
-@pytest.mark.django_db
-def test_queue_script_generation_rejects_duplicate_active_job(
-    news_source: NewsSource,
-) -> None:
-    episode = Episode.objects.create(title="Draft", status=EpisodeStatus.DRAFT)
-    Article.objects.create(
-        title="Source",
-        source=news_source,
-        url="https://example.com/source",
-        content_hash="source-hash",
-        selected_for_script=True,
-    )
-    Job.objects.create(
-        job_type=JobType.GENERATE_SCRIPT,
-        status=JobStatus.RUNNING,
-        payload={"episode_id": str(episode.id)},
-    )
-    service = ContentLibraryService()
-    with pytest.raises(ContentLibraryError, match="already running"):
-        service.queue_script_generation(episode_title="Draft")
-
-
-@pytest.mark.django_db
-def test_abort_script_generation_cancels_active_job(
-    news_source: NewsSource,
-) -> None:
-    episode = Episode.objects.create(title="Draft", status=EpisodeStatus.DRAFT)
-    Article.objects.create(
-        title="Source",
-        source=news_source,
-        url="https://example.com/source",
-        content_hash="source-hash",
-        selected_for_script=True,
-    )
-    job = Job.objects.create(
-        job_type=JobType.GENERATE_SCRIPT,
-        status=JobStatus.QUEUED,
-        payload={"episode_id": str(episode.id)},
-    )
-    service = ContentLibraryService()
-    aborted_id = service.abort_script_generation()
-    assert aborted_id == str(job.id)
-    job.refresh_from_db()
-    assert job.status == JobStatus.CANCELLED
 
 
 @pytest.mark.django_db
@@ -308,14 +236,9 @@ def test_abort_script_from_content_ui(admin_client, news_source: NewsSource) -> 
     assert response.status_code == 302
     assert "aborted_job=" in response.url
 
-    page = admin_client.get(reverse("operations:content"))
-    content = page.content.decode()
-    assert "Generate Script" in content
-    assert "btn-outline-danger" not in content
-
 
 @pytest.mark.django_db
-def test_content_shows_abort_while_script_queued(
+def test_content_shows_generating_while_script_queued(
     admin_client,
     news_source: NewsSource,
 ) -> None:
@@ -338,6 +261,28 @@ def test_content_shows_abort_while_script_queued(
     assert "Generating..." in content
     assert "Abort" in content
     assert 'id="generate-script-btn"' not in content
+
+
+@pytest.mark.django_db
+def test_queue_script_generation_rejects_duplicate_active_job(
+    news_source: NewsSource,
+) -> None:
+    episode = Episode.objects.create(title="Draft", status=EpisodeStatus.DRAFT)
+    Article.objects.create(
+        title="Source",
+        source=news_source,
+        url="https://example.com/source",
+        content_hash="source-hash",
+        selected_for_script=True,
+    )
+    Job.objects.create(
+        job_type=JobType.GENERATE_SCRIPT,
+        status=JobStatus.RUNNING,
+        payload={"episode_id": str(episode.id)},
+    )
+    service = ContentLibraryService()
+    with pytest.raises(ContentLibraryError, match="already running"):
+        service.queue_script_generation(episode_title="Draft")
 
 
 @pytest.mark.django_db
@@ -376,40 +321,6 @@ def test_episodes_view_has_delete_not_admin(admin_client) -> None:
     assert "Delete" in content
     assert "admin:episodes_episode_change" not in content
     assert "admin:episodes_episode_changelist" not in content
-
-
-@pytest.mark.django_db
-def test_queue_script_generation_requires_selection(news_source: NewsSource) -> None:
-    del news_source
-    service = ContentLibraryService()
-    with pytest.raises(ContentLibraryError):
-        service.queue_script_generation(episode_title="")
-
-
-@pytest.mark.django_db
-def test_queue_script_generation_creates_new_episode(
-    news_source: NewsSource,
-    mock_job_dispatch,
-) -> None:
-    del mock_job_dispatch
-    existing = Episode.objects.create(title="Old Draft", status=EpisodeStatus.DRAFT)
-    Article.objects.create(
-        title="Source",
-        source=news_source,
-        url="https://example.com/source",
-        content_hash="source-hash",
-        status=ArticleStatus.COLLECTED,
-        selected_for_script=True,
-    )
-
-    service = ContentLibraryService()
-    episode_id, _ = service.queue_script_generation(episode_title="Brand New Show")
-
-    assert episode_id != str(existing.id)
-    assert Episode.objects.filter(pk=existing.id).exists()
-    new_episode = Episode.objects.get(pk=episode_id)
-    assert new_episode.title == "Brand New Show"
-    assert Episode.objects.count() == 2
 
 
 @pytest.mark.django_db

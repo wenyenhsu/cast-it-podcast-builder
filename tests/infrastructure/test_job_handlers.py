@@ -1,4 +1,4 @@
-"""Tests for scheduled-job target resolution in job handlers."""
+"""Tests for job target resolution in job handlers."""
 
 from types import SimpleNamespace
 
@@ -19,21 +19,17 @@ def scheduled_job() -> SimpleNamespace:
 
 
 @pytest.mark.django_db
-def test_scheduled_script_run_picks_newest_unscripted_draft() -> None:
-    scripted = Episode.objects.create(title="old", status=EpisodeStatus.DRAFT)
-    Script.objects.create(episode=scripted, version=1, status=ScriptStatus.READY)
-    unscripted = Episode.objects.create(title="new", status=EpisodeStatus.DRAFT)
-
-    assert _resolve_episode_for_script(scheduled_job()).id == unscripted.id
+def test_script_run_requires_episode_id() -> None:
+    Episode.objects.create(title="draft", status=EpisodeStatus.DRAFT)
+    with pytest.raises(JobPermanentError, match="requires episode_id"):
+        _resolve_episode_for_script(scheduled_job())
 
 
 @pytest.mark.django_db
-def test_scheduled_script_run_without_candidates_raises() -> None:
-    episode = Episode.objects.create(title="done", status=EpisodeStatus.COMPLETED)
-    Script.objects.create(episode=episode, version=1, status=ScriptStatus.READY)
-
-    with pytest.raises(JobPermanentError):
-        _resolve_episode_for_script(scheduled_job())
+def test_script_run_uses_payload_episode() -> None:
+    episode = Episode.objects.create(title="target", status=EpisodeStatus.DRAFT)
+    job = SimpleNamespace(payload={"episode_id": str(episode.id)})
+    assert _resolve_episode_for_script(job).id == episode.id
 
 
 @pytest.mark.django_db

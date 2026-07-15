@@ -5,7 +5,7 @@ from typing import Any
 
 from apps.articles.models import Article
 from apps.audio.models import AudioAsset, AudioAssetStatus
-from apps.episodes.models import Episode, EpisodeStatus
+from apps.episodes.models import Episode
 from apps.scheduler.models import Job
 from apps.scripts.models import Script, ScriptStatus
 from domain.jobs.exceptions import JobPermanentError, JobTransientError
@@ -113,27 +113,14 @@ class EpisodePlanningHandler(BaseJobHandler):
 
 
 def _resolve_episode_for_script(job: Job) -> Episode:
-    """Payload episode, or (for scheduled runs) the newest draft without a script."""
+    """Resolve the episode for a manually queued script job."""
     episode_id = job.payload.get("episode_id")
-    if episode_id:
-        return Episode.objects.get(pk=episode_id)
-
-    from django.db.models import Exists, OuterRef
-
-    ready_script = Script.objects.filter(
-        episode=OuterRef("pk"),
-        status__in=[ScriptStatus.READY, ScriptStatus.APPROVED],
-    )
-    episode = (
-        Episode.objects.filter(status=EpisodeStatus.DRAFT)
-        .annotate(has_script=Exists(ready_script))
-        .filter(has_script=False)
-        .order_by("-created_at")
-        .first()
-    )
-    if episode is None:
-        raise JobPermanentError("No draft episode awaiting a script.")
-    return episode
+    if not episode_id:
+        raise JobPermanentError(
+            "Script generation requires episode_id. "
+            "Automatic scheduling is disabled; use Content → Generate Script."
+        )
+    return Episode.objects.get(pk=episode_id)
 
 
 class GenerateScriptHandler(BaseJobHandler):

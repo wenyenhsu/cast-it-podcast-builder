@@ -1,6 +1,6 @@
 """Article library management for the operations content dashboard."""
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from django.utils import timezone
 
@@ -14,8 +14,8 @@ from services.admin.dispatch import AdminJobDispatchService
 from services.admin.job_progress import JobProgressService
 from services.jobs.job_service import CANCELLABLE_STATUSES
 
-if TYPE_CHECKING:
-    from apps.scheduler.models import Job
+# Allow aborting stuck RUNNING jobs from the Content UI as well.
+SCRIPT_ABORTABLE_STATUSES = CANCELLABLE_STATUSES | frozenset({JobStatus.RUNNING})
 
 
 class ContentLibraryError(Exception):
@@ -125,8 +125,7 @@ class ContentLibraryService:
             "episode_status": episode.status if episode else "",
             "linked_articles": episode.articles.count() if episode else 0,
             "selected_for_script": selected_count,
-            "can_generate": selected_count > 0
-            and active_script_job is None,
+            "can_generate": selected_count > 0 and active_script_job is None,
             "latest_script_version": latest_script.version if latest_script else None,
             "latest_script_status": latest_script.status if latest_script else "",
             "latest_ready_script_id": latest_ready_script_id,
@@ -135,7 +134,7 @@ class ContentLibraryService:
             if active_script_job
             else "",
             "can_abort_script": active_script_job is not None
-            and active_script_job.status in CANCELLABLE_STATUSES,
+            and active_script_job.status in SCRIPT_ABORTABLE_STATUSES,
             "script_job_status": active_script_job.status if active_script_job else "",
         }
 
@@ -172,7 +171,7 @@ class ContentLibraryService:
         active_job = JobProgressService().find_any_active_script_job()
         if active_job is not None:
             raise ContentLibraryError(
-                "Script generation is already running. Wait for it to finish or dismiss the job panel."
+                "Script generation is already running. Wait for it to finish or abort it."
             )
 
         episode = Episode.objects.create(title=title, status=EpisodeStatus.DRAFT)
@@ -188,16 +187,31 @@ class ContentLibraryService:
         return str(episode.id), str(job.id)
 
     def abort_script_generation(self) -> str:
-        episode = self._draft_episode()
-        if episode is None:
-            raise ContentLibraryError("No draft episode found.")
-
-        active_job = JobProgressService().find_active_script_job(str(episode.id))
+        active_job = JobProgressService().find_any_active_script_job()
         if active_job is None:
             raise ContentLibraryError("No active script generation job to abort.")
 
+        if active_job.status not in SCRIPT_ABORTABLE_STATUSES:
+            raise ContentLibraryError(
+                f"Script job cannot be aborted from status '{active_job.status}'."
+            )
+
         try:
-            AdminJobDispatchService().cancel_job(active_job)
+            if active_job.status == JobStatus.RUNNING:
+                # Force-close stale RUNNING jobs that no longer have a worker.
+                active_job.status = JobStatus.CANCELLED
+                active_job.error_message = "Aborted from Content UI."
+                active_job.completed_at = timezone.now()
+                active_job.save(
+                    update_fields=[
+                        "status",
+                        "error_message",
+                        "completed_at",
+                        "updated_at",
+                    ]
+                )
+            else:
+                AdminJobDispatchService().cancel_job(active_job)
         except JobCancellationError as exc:
             raise ContentLibraryError(str(exc)) from exc
 

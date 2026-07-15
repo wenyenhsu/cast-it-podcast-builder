@@ -24,7 +24,7 @@ def test_build_beat_schedule_contains_required_jobs() -> None:
     schedule = build_beat_schedule()
     assert "daily-news-import" in schedule
     assert "daily-episode-planning" in schedule
-    assert "daily-script-generation" in schedule
+    assert "daily-script-generation" not in schedule
     assert "daily-supabase-publish" in schedule
     assert "failed-job-retry-sweep" in schedule
     assert schedule["daily-news-import"]["task"].endswith("import_news_scheduled")

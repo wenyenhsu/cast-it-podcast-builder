@@ -2,7 +2,6 @@
         shell bash migrate migrations createsuperuser collectstatic \
         db-shell redis-cli reset-db \
         import-news plan-episode generate-script generate-audio publish \
-        publish-supabase \
         youtube-token test test-fast
 
 DC = docker compose
@@ -83,10 +82,6 @@ import-news:
 plan-episode:
 	$(DC) exec web python manage.py shell -c \
 		"from apps.scheduler.tasks.planning import episode_planning_scheduled; episode_planning_scheduled()"
-
-generate-script:
-	$(DC) exec web python manage.py shell -c \
-		"from apps.scheduler.tasks.script import generate_script_scheduled; generate_script_scheduled()"
 
 generate-audio:
 	$(DC) exec web python manage.py shell -c \
