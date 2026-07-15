@@ -22,18 +22,13 @@
 
 <ul class="nav nav-tabs monitor-tabs mb-4" role="tablist">
   <li class="nav-item" role="presentation">
-    <a class="nav-link{% if content_view == 'episodes' %} active{% endif %}" href="{% url 'operations:content' %}?view=episodes" role="tab">
-      <i class="bi bi-collection-play me-1"></i>Episodes
-    </a>
-  </li>
-  <li class="nav-item" role="presentation">
     <a class="nav-link{% if content_view == 'articles' %} active{% endif %}" href="{% url 'operations:content' %}{% if content_filter != 'all' %}?type={{ content_filter }}{% endif %}" role="tab">
       <i class="bi bi-journal-text me-1"></i>Articles
     </a>
   </li>
   <li class="nav-item" role="presentation">
-    <a class="nav-link{% if content_view == 'scripts' %} active{% endif %}" href="{% url 'operations:content' %}?view=scripts" role="tab">
-      <i class="bi bi-file-earmark-text me-1"></i>Scripts
+    <a class="nav-link{% if content_view == 'episodes' %} active{% endif %}" href="{% url 'operations:content' %}?view=episodes" role="tab">
+      <i class="bi bi-collection-play me-1"></i>Episodes
     </a>
   </li>
   <li class="nav-item" role="presentation">

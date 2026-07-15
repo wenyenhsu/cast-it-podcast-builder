@@ -345,11 +345,19 @@ def test_delete_failed_job_from_content_ui(admin_client) -> None:
 
 
 @pytest.mark.django_db
-def test_content_scripts_tab_link(admin_client) -> None:
+def test_content_tab_order_articles_first_without_scripts_tab(admin_client) -> None:
     response = admin_client.get(reverse("operations:content"))
     content = response.content.decode()
-    assert "view=scripts" in content
-    assert "Scripts" in content
+    tabs_start = content.find('role="tablist"')
+    tabs_end = content.find("</ul>", tabs_start)
+    tabs = content[tabs_start:tabs_end]
+    articles_pos = tabs.find("Articles")
+    episodes_pos = tabs.find("Episodes")
+    assert articles_pos != -1
+    assert episodes_pos != -1
+    assert articles_pos < episodes_pos
+    assert "Scripts" not in tabs
+    assert "?view=scripts" not in tabs
 
 
 @pytest.mark.django_db

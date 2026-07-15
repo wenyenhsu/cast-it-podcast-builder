@@ -20,13 +20,15 @@ def test_scripts_page_redirects_to_content_tab(admin_client) -> None:
 
 
 @pytest.mark.django_db
-def test_scripts_tab_renders_in_content(admin_client) -> None:
+def test_manual_script_page_still_renders_without_scripts_tab(
+    admin_client,
+) -> None:
     response = admin_client.get(reverse("operations:content"), {"view": "scripts"})
     assert response.status_code == 200
     content = response.content.decode()
     assert "Add Manual Script" in content
     assert "Save Manual Script" in content
-    assert "Scripts" in content
+    assert ">Scripts</a>" not in content
 
 
 @pytest.mark.django_db
