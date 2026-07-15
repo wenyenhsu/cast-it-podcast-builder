@@ -21,6 +21,8 @@ logger = logging.getLogger(__name__)
 class HTTPClientProtocol(Protocol):
     """Protocol for HTTP clients used by SupabasePublisher."""
 
+    def get(self, url: str, **kwargs: Any) -> Any: ...
+
     def post(self, url: str, **kwargs: Any) -> Any: ...
 
     def delete(self, url: str, **kwargs: Any) -> Any: ...
@@ -46,11 +48,24 @@ class SupabaseSettings:
             ),
         )
 
+    @property
+    def is_configured(self) -> bool:
+        return bool(self.url and self.service_role_key)
+
     def validate(self) -> None:
-        if not self.url or not self.service_role_key:
+        if not self.is_configured:
             raise ValueError(
                 "SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set."
             )
+
+
+@dataclass(frozen=True)
+class SupabaseHealthProbe:
+    """Result of a Supabase connectivity probe."""
+
+    healthy: bool
+    detail: str
+    configured: bool
 
 
 @dataclass(frozen=True)
@@ -68,9 +83,12 @@ class SupabasePublisher:
         self,
         settings: SupabaseSettings | None = None,
         http_client: HTTPClientProtocol | None = None,
+        *,
+        require_config: bool = True,
     ) -> None:
         self._settings = settings or SupabaseSettings.from_django_settings()
-        self._settings.validate()
+        if require_config:
+            self._settings.validate()
         if http_client is None:
             import httpx
 
@@ -83,6 +101,37 @@ class SupabasePublisher:
             "apikey": self._settings.service_role_key,
             **extra,
         }
+
+    def probe_health(self) -> SupabaseHealthProbe:
+        """Probe Supabase REST availability for the Monitor health dashboard."""
+        if not self._settings.is_configured:
+            return SupabaseHealthProbe(
+                healthy=False,
+                detail="Not configured",
+                configured=False,
+            )
+        try:
+            response = self._http.get(
+                f"{self._settings.url}/rest/v1/tags?select=slug&limit=1",
+                headers=self._headers(),
+            )
+        except Exception as exc:
+            return SupabaseHealthProbe(
+                healthy=False,
+                detail=str(exc),
+                configured=True,
+            )
+        if 200 <= response.status_code < 300:
+            return SupabaseHealthProbe(
+                healthy=True,
+                detail=f"REST OK · bucket={self._settings.audio_bucket}",
+                configured=True,
+            )
+        return SupabaseHealthProbe(
+            healthy=False,
+            detail=f"REST {response.status_code}: {response.text[:160]}",
+            configured=True,
+        )
 
     def sync_taxonomy(self) -> int:
         """Upsert ALLOWED_TAGS into Supabase so the taxonomy never drifts.

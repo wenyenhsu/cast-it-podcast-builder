@@ -24,6 +24,7 @@ class ProviderHealthService:
         return [
             self.check_ollama(),
             self.check_chatterbox(),
+            self.check_supabase(),
             self.check_vector_store(),
             self.check_embedding_provider(),
             self.check_youtube(),
@@ -58,6 +59,30 @@ class ProviderHealthService:
             latency_ms=round(latency_ms, 2),
             error_message="" if healthy else "TTS provider health check failed",
             metadata={"provider": settings.provider},
+        )
+
+    def check_supabase(self) -> HealthCheckResult:
+        from services.publish.supabase_publisher import SupabasePublisher
+
+        start = time.perf_counter()
+        probe = SupabasePublisher(require_config=False).probe_health()
+        latency_ms = (time.perf_counter() - start) * 1000
+        if not probe.configured:
+            status = HealthStatus.WARNING
+        elif probe.healthy:
+            status = HealthStatus.HEALTHY
+        else:
+            status = HealthStatus.UNHEALTHY
+        return HealthCheckResult(
+            component="supabase",
+            status=status,
+            checked_at=datetime.now(tz=UTC),
+            latency_ms=round(latency_ms, 2),
+            error_message="" if probe.healthy else probe.detail,
+            metadata={
+                "configured": probe.configured,
+                "detail": probe.detail,
+            },
         )
 
     def check_vector_store(self) -> HealthCheckResult:

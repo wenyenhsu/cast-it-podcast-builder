@@ -3,7 +3,7 @@
   class="btn btn-sm btn-outline-primary"
   href="{% url 'operations:tts_generation' %}?episode={{ episode.id }}"
 >
-  <i class="bi bi-soundwave me-1"></i>Generate TTS
+  <i class="bi bi-soundwave me-1"></i>TTS
 </a>
 {% else %}
 <a
@@ -11,6 +11,6 @@
   href="{% url 'operations:content' %}?view=scripts&amp;episode={{ episode.id }}"
   title="Ready script required before TTS"
 >
-  <i class="bi bi-soundwave me-1"></i>Generate TTS
+  <i class="bi bi-soundwave me-1"></i>TTS
 </a>
 {% endif %}

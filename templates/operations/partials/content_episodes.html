@@ -75,11 +75,11 @@
               <a
                 class="btn btn-sm btn-outline-primary"
                 href="{% url 'operations:tts_generation' %}?script={{ episode.tts_script_id }}"
-              >Generate TTS</a>
+              >TTS</a>
               {% else %}
-              <a class="btn btn-sm btn-outline-secondary" href="#" tabindex="-1" aria-disabled="true" onclick="return false;">Generate TTS</a>
+              <a class="btn btn-sm btn-outline-secondary" href="#" tabindex="-1" aria-disabled="true" onclick="return false;">TTS</a>
               {% endif %}
-              <form method="post">
+              <form method="post" class="d-inline">
                 {% csrf_token %}
                 <input type="hidden" name="content_action" value="delete_episode">
                 <input type="hidden" name="content_view" value="episodes">

@@ -189,7 +189,7 @@ def test_episodes_view_lists_generate_tts_button(admin_client) -> None:
         {"view": "episodes"},
     )
     content = response.content.decode()
-    assert "Generate TTS" in content
+    assert ">TTS</a>" in content
     assert episode.title in content
 
 
@@ -253,7 +253,7 @@ def test_episodes_list_page(admin_client) -> None:
     assert response.status_code == 200
     content = response.content.decode()
     assert "Test Episode" in content
-    assert "Generate TTS" in content
+    assert ">TTS</a>" in content
     assert "Delete" in content
 
 

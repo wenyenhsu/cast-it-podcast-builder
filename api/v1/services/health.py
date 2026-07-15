@@ -21,6 +21,7 @@ class ApiHealthService:
             "celery": self.celery(),
             "llm": self.llm(),
             "tts": self.tts(),
+            "supabase": self.supabase(),
             "publish": self.publish(),
             "knowledge": self.knowledge(),
         }
@@ -51,6 +52,18 @@ class ApiHealthService:
         return {
             "healthy": healthy,
             "provider": settings.provider,
+        }
+
+    def supabase(self) -> dict[str, Any]:
+        from services.publish.supabase_publisher import SupabasePublisher
+
+        probe = SupabasePublisher(require_config=False).probe_health()
+        # Unconfigured is not a platform failure; Monitor shows Warning separately.
+        healthy = True if not probe.configured else probe.healthy
+        return {
+            "healthy": healthy,
+            "configured": probe.configured,
+            "detail": probe.detail,
         }
 
     def publish(self) -> dict[str, Any]:

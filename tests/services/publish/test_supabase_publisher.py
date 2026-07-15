@@ -19,8 +19,13 @@ class FakeResponse:
 
 
 class FakeHTTPClient:
-    def __init__(self) -> None:
+    def __init__(self, get_status: int = 200) -> None:
         self.requests: list[dict] = []
+        self.get_status = get_status
+
+    def get(self, url: str, **kwargs) -> FakeResponse:
+        self.requests.append({"method": "GET", "url": url, **kwargs})
+        return FakeResponse(self.get_status)
 
     def post(self, url: str, **kwargs) -> FakeResponse:
         self.requests.append({"method": "POST", "url": url, **kwargs})
@@ -220,3 +225,36 @@ def test_sync_taxonomy_upserts_all_allowed_tags(
     names = {row["name"] for row in request["json"]}
     assert names == set(ALLOWED_TAGS)
     assert {row["slug"] for row in request["json"]} >= {"llm", "claude-fable", "uiux"}
+
+
+def test_probe_health_ok(supabase_settings: SupabaseSettings) -> None:
+    http = FakeHTTPClient(get_status=200)
+    probe = SupabasePublisher(
+        settings=supabase_settings,
+        http_client=http,
+    ).probe_health()
+    assert probe.healthy is True
+    assert probe.configured is True
+    assert http.requests[0]["url"].endswith("/rest/v1/tags?select=slug&limit=1")
+
+
+def test_probe_health_not_configured() -> None:
+    settings = SupabaseSettings(url="", service_role_key="", audio_bucket="episode-audio")
+    probe = SupabasePublisher(
+        settings=settings,
+        http_client=FakeHTTPClient(),
+        require_config=False,
+    ).probe_health()
+    assert probe.healthy is False
+    assert probe.configured is False
+    assert probe.detail == "Not configured"
+
+
+def test_probe_health_rest_error(supabase_settings: SupabaseSettings) -> None:
+    http = FakeHTTPClient(get_status=503)
+    probe = SupabasePublisher(
+        settings=supabase_settings,
+        http_client=http,
+    ).probe_health()
+    assert probe.healthy is False
+    assert "503" in probe.detail

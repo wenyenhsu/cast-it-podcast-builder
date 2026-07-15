@@ -21,6 +21,7 @@ class AdminHealthService:
             self._celery(api_health.get("checks", {}).get("celery", {})),
             self._ollama(api_health.get("checks", {}).get("llm", {})),
             self._chatterbox(api_health.get("checks", {}).get("tts", {})),
+            self._supabase(),
             self._ffmpeg(),
             self._storage(),
         ]
@@ -84,6 +85,23 @@ class AdminHealthService:
             "status": status,
             "healthy": healthy,
             "detail": f"Provider: {data.get('provider', 'unknown')}",
+        }
+
+    def _supabase(self) -> dict[str, Any]:
+        from services.publish.supabase_publisher import SupabasePublisher
+
+        probe = SupabasePublisher(require_config=False).probe_health()
+        if not probe.configured:
+            status = "Warning"
+        elif probe.healthy:
+            status = "Healthy"
+        else:
+            status = "Error"
+        return {
+            "name": "Supabase",
+            "status": status,
+            "healthy": probe.healthy,
+            "detail": probe.detail,
         }
 
     def _ffmpeg(self) -> dict[str, Any]:

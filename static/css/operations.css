@@ -141,18 +141,20 @@ body {
 }
 
 .ops-table .ops-col-actions {
-  width: 14.5rem;
+  width: 13rem;
 }
 
 .ops-table .ops-actions-cell {
-  display: flex;
-  flex-wrap: wrap;
+  display: inline-flex;
+  flex-wrap: nowrap;
   justify-content: flex-end;
   align-items: center;
   gap: 0.35rem;
+  white-space: nowrap;
 }
 
 .ops-table .ops-actions-cell form {
+  display: inline;
   margin: 0;
 }
 
