@@ -31,6 +31,12 @@ class Episode(DomainModel):
     )
     duration_seconds = models.PositiveIntegerField(null=True, blank=True)
     cover_image = models.CharField(max_length=500, blank=True)
+    publish = models.PositiveSmallIntegerField(
+        default=0,
+        choices=((0, "Hidden"), (1, "Published")),
+        db_index=True,
+        help_text="Listener gate: only episodes set to 1 are publicly visible.",
+    )
     articles = models.ManyToManyField(
         "articles.Article",
         through="episodes.EpisodeArticle",

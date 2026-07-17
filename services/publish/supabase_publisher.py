@@ -396,6 +396,7 @@ class SupabasePublisher:
             "audio_url": audio_url,
             "cover_url": episode.cover_image or None,
             "category": self._primary_category(episode),
+            "publish": episode.publish,
         }
         response = self._http.post(
             f"{self._settings.url}/rest/v1/episodes?on_conflict=id",
