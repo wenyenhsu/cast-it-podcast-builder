@@ -29,10 +29,12 @@ class EpisodeAdmin(AdminActionMixin, admin.ModelAdmin):
         "segment_count",
         "audio_status",
         "publish_status",
+        "publish",
         "pipeline_link",
         "created_at",
     )
-    list_filter = ("status", "language")
+    list_editable = ("publish",)
+    list_filter = ("status", "language", "publish")
     search_fields = ("title", "description", "summary")
     readonly_fields = (
         "id",

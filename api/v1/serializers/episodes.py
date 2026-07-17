@@ -16,6 +16,7 @@ class EpisodeListSerializer(serializers.ModelSerializer):
             "language",
             "publish_date",
             "status",
+            "publish",
             "duration_seconds",
             "created_at",
             "updated_at",
@@ -36,6 +37,7 @@ class EpisodeDetailSerializer(serializers.ModelSerializer):
             "language",
             "publish_date",
             "status",
+            "publish",
             "duration_seconds",
             "cover_image",
             "created_at",
@@ -56,6 +58,7 @@ class EpisodeWriteSerializer(serializers.ModelSerializer):
             "language",
             "publish_date",
             "status",
+            "publish",
             "duration_seconds",
             "cover_image",
         )
