@@ -7,6 +7,16 @@ $log = "$PSScriptRoot\..\logs\morning-catchup.log"
 New-Item -ItemType Directory -Force (Split-Path $log) | Out-Null
 function Log($msg) { "$(Get-Date -Format s) $msg" | Add-Content $log }
 
+trap {
+    Log "FATAL: $_"
+    exit 1
+}
+
+Log "catch-up cycle started"
+
+# Just after login, PATH and services may not be ready yet — settle first.
+Start-Sleep -Seconds 60
+
 # Make sure the host services are alive first (also starts Docker).
 & "$PSScriptRoot\pipeline-watchdog.ps1"
 
