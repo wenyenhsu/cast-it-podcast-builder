@@ -45,18 +45,16 @@ class ArticleScoreService:
     def score(self, article: Article) -> ScoreDTO:
         """Generate and store an importance score for an article."""
         started = time.perf_counter()
-        llm_score = self._fetch_llm_score(article)
+        # llm_score = self._fetch_llm_score(article)
         freshness_score = self._freshness_score(article.published_at)
-        source_score = self._source_score(article)
+        # source_score = self._source_score(article)
         category_score = self._category_score(article.category)
         keyword_score = self._keyword_score(article)
 
         weighted = (
-            freshness_score * 25
-            + source_score * 15
-            + category_score * 10
-            + keyword_score * 15
-            + llm_score * 35
+            freshness_score * 50
+            + category_score * 25
+            + keyword_score * 25
         )
         final_score = int(max(0, min(100, round(weighted))))
         scored_at = timezone.now()
@@ -79,10 +77,10 @@ class ArticleScoreService:
             article_id=article.id,
             score=final_score,
             freshness_score=freshness_score * 100,
-            source_score=source_score * 100,
+            # source_score=source_score * 100,
             category_score=category_score * 100,
             keyword_score=keyword_score * 100,
-            llm_score=float(llm_score),
+            # llm_score=float(llm_score),
             scored_at=scored_at,
         )
 
