@@ -26,8 +26,15 @@ STAGES = [
 
 
 def api(path: str):
-    with urllib.request.urlopen(f"{BASE}{path}", timeout=30) as r:
-        return json.loads(r.read().decode())
+    last_error: Exception | None = None
+    for _ in range(5):
+        try:
+            with urllib.request.urlopen(f"{BASE}{path}", timeout=30) as r:
+                return json.loads(r.read().decode())
+        except Exception as exc:  # transient: container restarts, reloads
+            last_error = exc
+            time.sleep(10)
+    raise last_error  # type: ignore[misc]
 
 
 def newest_job(job_type: str):
