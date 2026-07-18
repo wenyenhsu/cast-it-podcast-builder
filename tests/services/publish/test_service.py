@@ -60,6 +60,7 @@ def test_publish_episode_rss_only(
 
     publishable_episode.refresh_from_db()
     assert publishable_episode.status == EpisodeStatus.COMPLETED
+    assert publishable_episode.publish == 1
     assert len(result.platform_results) == 1
     assert result.platform_results[0].platform == "rss"
     assert PublishedEpisode.objects.filter(episode=publishable_episode).count() == 1

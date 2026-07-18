@@ -2,40 +2,51 @@
 
 import logging
 import time
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeVar
 
 from django.db import transaction
 from django.utils import timezone
+from pydantic import BaseModel
 
 from apps.articles.models import Article
 from apps.episodes.models import Episode, EpisodeStatus
-from apps.scripts.models import Script, ScriptSegment, ScriptStatus, ValidationStatus
 from apps.scheduler.models import Job
+from apps.scripts.models import Script, ScriptSegment, ScriptStatus, ValidationStatus
 from domain.llm.dtos import LLMRequest
 from domain.scripts.exceptions import ScriptGenerationError, ScriptValidationError
-from domain.scripts.schema import PodcastScriptSchema, ScriptSegmentSchema
+from domain.scripts.schema import (
+    ChapterCriticSchema,
+    CoherenceScriptSchema,
+    EpisodeOutlineChapterSchema,
+    EpisodeOutlineSchema,
+    PodcastScriptSchema,
+    ScriptSegmentSchema,
+    StoryBriefSchema,
+)
+from services.episodes.status_sync import sync_episode_idle_status
+from services.episodes.title import (
+    is_placeholder_episode_title,
+)
+from services.jobs.job_service import JobService
+from services.knowledge.script_rag import ScriptRagResult, ScriptRagService
 from services.scripts.duration_estimator import estimate_segment_duration_seconds
 from services.scripts.prompt_builder import ScriptPromptBuilder, ScriptPromptConfig
+from services.scripts.settings import ScriptPipelineSettings
+from services.scripts.source_context import clean_article_content, estimate_tokens
 from services.scripts.validation_service import (
     ScriptValidationConfig,
     ScriptValidationResult,
     ScriptValidationService,
 )
 from services.scripts.version_service import ScriptVersionService
-from services.jobs.job_service import JobService
-from services.episodes.status_sync import sync_episode_idle_status
-from services.knowledge.script_rag import ScriptRagResult, ScriptRagService
-from services.episodes.title import (
-    apply_episode_name,
-    is_placeholder_episode_title,
-    normalize_episode_name,
-)
 
 if TYPE_CHECKING:
     from services.llm.service import LLMService
 
 logger = logging.getLogger(__name__)
+SchemaT = TypeVar("SchemaT", bound=BaseModel)
 
 
 @dataclass(frozen=True)
@@ -46,6 +57,7 @@ class ScriptGenerationConfig:
     validation_config: ScriptValidationConfig | None = None
     max_token_budget: int | None = None
     activate_on_success: bool = True
+    pipeline_settings: ScriptPipelineSettings | None = None
 
 
 class ScriptGenerationService:
@@ -70,8 +82,14 @@ class ScriptGenerationService:
         )
         self._version_service = version_service or ScriptVersionService()
         self._script_rag = script_rag_service or ScriptRagService()
+        self._pipeline = (
+            self._config.pipeline_settings
+            or ScriptPipelineSettings.from_django_settings()
+        )
         self._last_token_usage: dict[str, int] = {}
         self._last_rag_result: ScriptRagResult | None = None
+        self._critic_results: list[ChapterCriticSchema] = []
+        self._last_pipeline_metadata: dict[str, object] = {}
 
     def generate(self, episode: Episode, *, job: Job | None = None) -> Script:
         """Generate a new script version for the given episode."""
@@ -82,7 +100,11 @@ class ScriptGenerationService:
                 job_service.update_progress(job, value)
 
         _progress(10)
-        articles = list(episode.articles.prefetch_related("tags").order_by("title"))
+        articles = list(
+            episode.articles.prefetch_related("tags").order_by(
+                "-importance_score", "-published_at", "created_at"
+            )
+        )
         if not articles:
             raise ScriptGenerationError(
                 f"Episode {episode.id} has no selected articles for script generation."
@@ -121,12 +143,13 @@ class ScriptGenerationService:
 
         try:
             _progress(30)
-            rag_result = self._script_rag.enrich(episode, articles)
-            self._last_rag_result = rag_result
-            _progress(35)
-            parsed = self._call_llm(episode, articles, rag_result=rag_result)
+            parsed = self._call_llm(episode, articles)
             _progress(70)
-            validation = self._validation.validate(parsed)
+            validation = self._validation.validate(
+                parsed,
+                critics=self._critic_results,
+                expected_language=episode.language,
+            )
             _progress(85)
             script = self._persist_script(
                 script=script,
@@ -220,114 +243,439 @@ class ScriptGenerationService:
         self,
         episode: Episode,
         articles: list[Article],
-        *,
-        rag_result: ScriptRagResult | None = None,
     ) -> PodcastScriptSchema:
-        if len(articles) >= 2:
-            return self._call_llm_chaptered(episode, articles, rag_result=rag_result)
-
-        system_prompt = self._prompt_builder.build_system_prompt()
-        user_prompt = self._prompt_builder.build_user_prompt(
-            episode_title=episode.title,
-            episode_summary=episode.summary,
-            articles=articles,
-            rag_context=rag_result.context_text if rag_result else "",
+        """Run the grounded brief -> outline -> chapter -> critic pipeline."""
+        language = episode.language or "en"
+        grounding_system_prompt = self._prompt_builder.build_grounding_system_prompt(
+            language=language
         )
-
-        request = LLMRequest(
-            system_prompt=system_prompt,
-            user_prompt=user_prompt,
-            json_mode=True,
-            max_tokens=self._config.max_token_budget,
-        )
-        response = self._llm.chat(request)
         self._last_token_usage = {
-            "prompt_tokens": response.prompt_tokens,
-            "completion_tokens": response.completion_tokens,
-            "total_tokens": response.total_tokens,
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
         }
-        return self._validation.parse_json(response.content)
+        self._critic_results = []
+        self._last_pipeline_metadata = {}
 
-    def _call_llm_chaptered(
-        self,
-        episode: Episode,
-        articles: list[Article],
-        *,
-        rag_result: ScriptRagResult | None = None,
-    ) -> PodcastScriptSchema:
-        """Generate one chapter per article and merge into a single script.
+        briefs: list[StoryBriefSchema] = []
+        source_by_id: dict[str, str] = {}
+        rag_by_id: dict[str, ScriptRagResult] = {}
+        for article in articles:
+            brief_prompt, source = self._prompt_builder.build_story_brief_prompt(
+                article,
+                language=language,
+                source_max_tokens=self._pipeline.source_max_tokens,
+            )
+            brief = self._request_schema(
+                grounding_system_prompt,
+                brief_prompt,
+                StoryBriefSchema,
+                max_tokens=self._pipeline.brief_max_tokens,
+            )
+            if brief.article_id != str(article.id):
+                raise ScriptGenerationError(
+                    f"Story brief returned wrong article ID for {article.id}."
+                )
+            briefs.append(brief)
+            source_by_id[str(article.id)] = source
 
-        A single LLM call saturates well below the long-form target length on
-        local models; per-article calls keep each response small enough that
-        the model sustains the requested depth for every story.
-        """
-        system_prompt = self._prompt_builder.build_system_prompt()
-        all_titles = [article.title for article in articles]
-        chapter_count = len(articles)
+            cleaned = clean_article_content(article.content or article.summary)
+            if estimate_tokens(cleaned) > self._pipeline.source_max_tokens:
+                rag_by_id[str(article.id)] = self._script_rag.enrich_article(
+                    episode, article
+                )
 
-        # Scale per-chapter depth so the whole episode lands in the
-        # 10-15 minute target regardless of how many stories were planned:
-        # ~48 segments total (~2,400 words) split across the chapters.
-        per_chapter = max(5, min(14, 48 // chapter_count))
-        chapter_min = max(4, per_chapter - 1)
-        chapter_max = per_chapter + 2
-
-        merged_segments: list[ScriptSegmentSchema] = []
-        title = episode.title
-        summary = episode.summary
-        usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
-
-        for chapter_number, article in enumerate(articles, start=1):
-            user_prompt = self._prompt_builder.build_chapter_user_prompt(
+        outline = self._request_schema(
+            grounding_system_prompt,
+            self._prompt_builder.build_outline_prompt(
                 episode_title=episode.title,
                 episode_summary=episode.summary,
-                article=article,
-                chapter_number=chapter_number,
-                chapter_count=chapter_count,
-                all_titles=all_titles,
-                rag_context=(
-                    rag_result.context_text
-                    if rag_result and chapter_number == 1
-                    else ""
-                ),
-                chapter_min_segments=chapter_min,
-                chapter_max_segments=chapter_max,
+                language=language,
+                briefs=briefs,
+            ),
+            EpisodeOutlineSchema,
+            max_tokens=self._pipeline.outline_max_tokens,
+        )
+        expected_ids = {str(article.id) for article in articles}
+        if set(outline.article_order) != expected_ids:
+            raise ScriptGenerationError(
+                "Outline must include every episode article exactly once."
             )
-            request = LLMRequest(
+
+        article_by_id = {str(article.id): article for article in articles}
+        brief_by_id = {brief.article_id: brief for brief in briefs}
+        chapter_plan_by_id = {
+            chapter.article_id: chapter for chapter in outline.chapters
+        }
+        for chapter_plan in outline.chapters:
+            grounded_claims = {
+                fact.claim
+                for fact in brief_by_id[chapter_plan.article_id].must_cover_facts
+            }
+            unsupported = set(chapter_plan.must_cover_facts) - grounded_claims
+            if unsupported:
+                logger.warning(
+                    "Outline facts were paraphrased or absent from the story brief",
+                    extra={
+                        "event": "script_outline_fact_mismatch",
+                        "article_id": chapter_plan.article_id,
+                        "outline_facts": sorted(unsupported),
+                    },
+                )
+        ordered_articles = [article_by_id[item] for item in outline.article_order]
+        chapter_count = len(ordered_articles)
+        if chapter_count == 1:
+            chapter_min = self._prompt_builder.min_segments
+            chapter_max = self._prompt_builder.max_segments
+        else:
+            target_total = max(
+                self._prompt_builder.min_segments,
+                min(self._prompt_builder.max_segments, 48),
+            )
+            per_chapter = max(5, min(14, target_total // chapter_count))
+            chapter_min = max(4, per_chapter - 1)
+            chapter_max = per_chapter + 2
+        chapter_system_prompt = self._prompt_builder.build_system_prompt(
+            language=language,
+            min_segments=chapter_min,
+            max_segments=chapter_max,
+        )
+
+        merged_segments: list[ScriptSegmentSchema] = []
+        chapter_lengths: dict[str, int] = {}
+        initial_critics: list[ChapterCriticSchema] = []
+        covered: list[str] = []
+        previous_summary = "None; this is the first chapter."
+        previous_last_lines = "None"
+        for chapter_number, article in enumerate(ordered_articles, start=1):
+            article_id = str(article.id)
+            brief = brief_by_id[article_id]
+            chapter_plan = chapter_plan_by_id[article_id]
+            next_hook = chapter_plan.transition_out or "Close the episode naturally."
+            rag_result = rag_by_id.get(article_id)
+            chapter = self._request_schema(
+                chapter_system_prompt,
+                self._prompt_builder.build_chapter_user_prompt(
+                    episode_title=episode.title,
+                    episode_summary=episode.summary,
+                    article=article,
+                    chapter_number=chapter_number,
+                    chapter_count=chapter_count,
+                    language=language,
+                    episode_outline=outline,
+                    story_brief=brief,
+                    outline_chapter=chapter_plan,
+                    source_content=source_by_id[article_id],
+                    previous_chapter_summary=previous_summary,
+                    previous_chapter_last_lines=previous_last_lines,
+                    next_transition_hook=next_hook,
+                    already_covered=covered,
+                    rag_context=rag_result.context_text if rag_result else "",
+                    chapter_min_segments=chapter_min,
+                    chapter_max_segments=chapter_max,
+                ),
+                PodcastScriptSchema,
+                max_tokens=self._pipeline.chapter_max_tokens,
+            )
+
+            chapter, critic = self._review_and_rewrite_chapter(
+                dialogue_system_prompt=chapter_system_prompt,
+                grounding_system_prompt=grounding_system_prompt,
+                language=language,
+                brief=brief,
+                chapter_plan=chapter_plan,
+                source_content=source_by_id[article_id],
+                rag_context=rag_result.context_text if rag_result else "",
+                chapter=chapter,
+                covered=covered,
+                previous_chapter_summary=previous_summary,
+                previous_chapter_last_lines=previous_last_lines,
+                next_transition_hook=next_hook,
+                chapter_number=chapter_number,
+            )
+            initial_critics.append(critic)
+            for segment in chapter.segments:
+                segment.article_id = article_id
+            merged_segments.extend(chapter.segments)
+            chapter_lengths[article_id] = len(chapter.segments)
+            previous_summary = chapter.summary
+            previous_last_lines = "\n".join(
+                segment.text for segment in chapter.segments[-2:]
+            )
+            covered.extend(chapter_plan.must_cover_facts)
+            covered.append(brief.central_claim)
+
+        merged = PodcastScriptSchema(
+            title=outline.title or episode.title,
+            summary=outline.throughline,
+            segments=merged_segments,
+        )
+        coherence_system_prompt = self._prompt_builder.build_system_prompt(
+            language=language,
+            min_segments=len(merged.segments),
+            max_segments=len(merged.segments),
+        )
+        coherence_result = self._request_schema(
+            coherence_system_prompt,
+            self._prompt_builder.build_coherence_prompt(
+                language=language,
+                outline=outline,
+                briefs=briefs,
+                script=merged,
+            ),
+            CoherenceScriptSchema,
+            max_tokens=self._pipeline.coherence_max_tokens,
+        )
+        coherent = self._accept_coherence_result(coherence_result, merged)
+
+        final_segments: list[ScriptSegmentSchema] = []
+        final_critics: list[ChapterCriticSchema] = []
+        covered = []
+        previous_summary = "None; this is the first chapter."
+        previous_last_lines = "None"
+        offset = 0
+        for chapter_number, article in enumerate(ordered_articles, start=1):
+            article_id = str(article.id)
+            length = chapter_lengths[article_id]
+            chapter = PodcastScriptSchema(
+                title=coherent.title,
+                summary=coherent.summary,
+                segments=coherent.segments[offset : offset + length],
+            )
+            offset += length
+            brief = brief_by_id[article_id]
+            chapter_plan = chapter_plan_by_id[article_id]
+            next_hook = chapter_plan.transition_out or "Close the episode naturally."
+            rag_result = rag_by_id.get(article_id)
+            chapter, critic = self._review_and_rewrite_chapter(
+                dialogue_system_prompt=chapter_system_prompt,
+                grounding_system_prompt=grounding_system_prompt,
+                language=language,
+                brief=brief,
+                chapter_plan=chapter_plan,
+                source_content=source_by_id[article_id],
+                rag_context=rag_result.context_text if rag_result else "",
+                chapter=chapter,
+                covered=covered,
+                previous_chapter_summary=previous_summary,
+                previous_chapter_last_lines=previous_last_lines,
+                next_transition_hook=next_hook,
+                chapter_number=chapter_number,
+            )
+            for segment in chapter.segments:
+                segment.article_id = article_id
+            final_segments.extend(chapter.segments)
+            final_critics.append(critic)
+            previous_summary = chapter.summary
+            previous_last_lines = "\n".join(
+                segment.text for segment in chapter.segments[-2:]
+            )
+            covered.extend(chapter_plan.must_cover_facts)
+            covered.append(brief.central_claim)
+
+        coherent.segments = final_segments
+        self._critic_results = final_critics
+
+        self._last_rag_result = _aggregate_rag_results(rag_by_id.values())
+        self._last_pipeline_metadata = {
+            "outline": outline.model_dump(),
+            "story_briefs": [brief.model_dump() for brief in briefs],
+            "initial_critics": [critic.model_dump() for critic in initial_critics],
+            "critics": [critic.model_dump() for critic in final_critics],
+        }
+        return coherent
+
+    def _request_schema(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        schema_type: type[SchemaT],
+        *,
+        max_tokens: int,
+    ) -> SchemaT:
+        """Call the LLM with an Ollama JSON schema and accumulate usage."""
+        response = self._llm.chat(
+            LLMRequest(
                 system_prompt=system_prompt,
                 user_prompt=user_prompt,
                 json_mode=True,
-                max_tokens=self._config.max_token_budget,
+                json_schema=schema_type.model_json_schema(),
+                max_tokens=(self._config.max_token_budget or max_tokens),
             )
-            response = self._llm.chat(request)
-            usage["prompt_tokens"] += response.prompt_tokens or 0
-            usage["completion_tokens"] += response.completion_tokens or 0
-            usage["total_tokens"] += response.total_tokens or 0
-
-            chapter = self._validation.parse_json(response.content)
-            for segment in chapter.segments:
-                segment.article_id = str(article.id)
-            merged_segments.extend(chapter.segments)
-            if chapter_number == 1:
-                title = chapter.title or title
-                summary = chapter.summary or summary
-            logger.info(
-                "Script chapter generated",
-                extra={
-                    "event": "script_chapter_generated",
-                    "episode_id": str(episode.id),
-                    "chapter": chapter_number,
-                    "chapter_count": chapter_count,
-                    "segment_count": len(chapter.segments),
-                },
-            )
-
-        self._last_token_usage = usage
-        return PodcastScriptSchema(
-            title=title,
-            summary=summary,
-            segments=merged_segments,
         )
+        for key in self._last_token_usage:
+            self._last_token_usage[key] += int(getattr(response, key, 0) or 0)
+        try:
+            return schema_type.model_validate_json(response.content)
+        except Exception as exc:
+            raise ScriptGenerationError(
+                f"Invalid {schema_type.__name__} JSON: {exc}"
+            ) from exc
+
+    def _accept_coherence_result(
+        self,
+        result: CoherenceScriptSchema,
+        original: PodcastScriptSchema,
+    ) -> PodcastScriptSchema:
+        """Verify immutable segment identity before accepting a coherence rewrite."""
+        if len(result.segments) != len(original.segments):
+            raise ScriptValidationError(
+                "Coherence pass changed segment count and broke chapter ownership."
+            )
+        indices = [segment.segment_index for segment in result.segments]
+        if indices != list(range(len(original.segments))):
+            raise ScriptValidationError(
+                "Coherence pass changed segment order and broke chapter ownership."
+            )
+
+        accepted: list[ScriptSegmentSchema] = []
+        for revised, source in zip(result.segments, original.segments, strict=True):
+            if revised.speaker != source.speaker or revised.voice != source.voice:
+                raise ScriptValidationError(
+                    "Coherence pass changed a segment speaker or voice."
+                )
+            segment = ScriptSegmentSchema.model_validate(
+                revised.model_dump(exclude={"segment_index"})
+            )
+            segment.article_id = source.article_id
+            accepted.append(segment)
+        return PodcastScriptSchema(
+            title=result.title,
+            summary=result.summary,
+            segments=accepted,
+        )
+
+    def _review_and_rewrite_chapter(
+        self,
+        *,
+        dialogue_system_prompt: str,
+        grounding_system_prompt: str,
+        language: str,
+        brief: StoryBriefSchema,
+        chapter_plan: EpisodeOutlineChapterSchema,
+        source_content: str,
+        rag_context: str,
+        chapter: PodcastScriptSchema,
+        covered: list[str],
+        previous_chapter_summary: str,
+        previous_chapter_last_lines: str,
+        next_transition_hook: str,
+        chapter_number: int,
+    ) -> tuple[PodcastScriptSchema, ChapterCriticSchema]:
+        """Critique a chapter and apply bounded, critic-guided rewrites."""
+        critic = self._critique_chapter(
+            system_prompt=grounding_system_prompt,
+            language=language,
+            brief=brief,
+            chapter_plan=chapter_plan,
+            chapter=chapter,
+            covered=covered,
+        )
+        retries = 0
+        while not self._critic_passes(critic):
+            if retries >= self._pipeline.rewrite_retries:
+                if self._critic_is_grounded(critic):
+                    logger.warning(
+                        "Chapter accepted with editorial warnings after rewrite limit",
+                        extra={
+                            "event": "script_chapter_editorial_warnings",
+                            "chapter_number": chapter_number,
+                            "critic_score": critic.score,
+                            "issues": self._critic_issues(critic),
+                        },
+                    )
+                    return chapter, critic
+                issues = self._critic_issues(critic)
+                raise ScriptValidationError(
+                    f"Chapter {chapter_number} failed content quality review: "
+                    + "; ".join(issues)
+                )
+            chapter = self._request_schema(
+                dialogue_system_prompt,
+                self._prompt_builder.build_rewrite_prompt(
+                    language=language,
+                    brief=brief,
+                    outline_chapter=chapter_plan,
+                    source_content=source_content,
+                    rag_context=rag_context,
+                    chapter=chapter,
+                    critic=critic,
+                    previous_chapter_summary=previous_chapter_summary,
+                    previous_chapter_last_lines=previous_chapter_last_lines,
+                    next_transition_hook=next_transition_hook,
+                    already_covered=covered,
+                ),
+                PodcastScriptSchema,
+                max_tokens=self._pipeline.chapter_max_tokens,
+            )
+            retries += 1
+            critic = self._critique_chapter(
+                system_prompt=grounding_system_prompt,
+                language=language,
+                brief=brief,
+                chapter_plan=chapter_plan,
+                chapter=chapter,
+                covered=covered,
+            )
+        return chapter, critic
+
+    def _critique_chapter(
+        self,
+        *,
+        system_prompt: str,
+        language: str,
+        brief: StoryBriefSchema,
+        chapter_plan: EpisodeOutlineChapterSchema,
+        chapter: PodcastScriptSchema,
+        covered: list[str],
+    ) -> ChapterCriticSchema:
+        return self._request_schema(
+            system_prompt,
+            self._prompt_builder.build_critic_prompt(
+                language=language,
+                brief=brief,
+                outline_chapter=chapter_plan,
+                chapter=chapter,
+                already_covered=covered,
+            ),
+            ChapterCriticSchema,
+            max_tokens=self._pipeline.critic_max_tokens,
+        )
+
+    def _critic_passes(self, critic: ChapterCriticSchema) -> bool:
+        return (
+            critic.passed
+            and critic.score >= self._pipeline.critic_threshold
+            and not critic.missing_facts
+            and not critic.unsupported_claims
+            and not critic.repetitions
+            and not critic.dialogue_issues
+            and not critic.coherence_issues
+            and not critic.transition_issues
+            and critic.language_matches
+        )
+
+    @staticmethod
+    def _critic_is_grounded(critic: ChapterCriticSchema) -> bool:
+        """Allow bounded editorial warnings, never grounding or language failures."""
+        return not critic.unsupported_claims and critic.language_matches
+
+    @staticmethod
+    def _critic_issues(critic: ChapterCriticSchema) -> list[str]:
+        issues = (
+            critic.missing_facts
+            + critic.unsupported_claims
+            + critic.repetitions
+            + critic.dialogue_issues
+            + critic.coherence_issues
+            + critic.transition_issues
+            + critic.language_issues
+        )
+        if not issues:
+            issues.append(
+                f"critic score {critic.score} is below the required threshold"
+            )
+        return issues
 
     @transaction.atomic
     def _persist_script(
@@ -407,6 +755,7 @@ class ScriptGenerationService:
             "segment_count": validation.segment_count,
             "estimated_duration_seconds": validation.estimated_duration_seconds,
             "rag": _rag_metadata(self._last_rag_result),
+            "pipeline": self._last_pipeline_metadata,
         }
         metadata.generation_notes = parsed.summary
         metadata.save(
@@ -459,3 +808,19 @@ def _rag_metadata(rag_result: ScriptRagResult | None) -> dict[str, object]:
         "articles_indexed": rag_result.articles_indexed,
         "context_included": bool(rag_result.context_text),
     }
+
+
+def _aggregate_rag_results(
+    results: Iterable[ScriptRagResult],
+) -> ScriptRagResult | None:
+    items = list(results)
+    if not items:
+        return None
+    return ScriptRagResult(
+        context_text="\n\n".join(
+            item.context_text for item in items if item.context_text
+        ),
+        chunks_used=sum(item.chunks_used for item in items),
+        articles_indexed=sum(item.articles_indexed for item in items),
+        enabled=any(item.enabled for item in items),
+    )

@@ -5,21 +5,27 @@ from django.urls import reverse
 
 from apps.articles.models import Article, ArticleStatus
 from apps.episodes.models import Episode, EpisodeArticle, EpisodeStatus
-from apps.scripts.models import Script, ScriptStatus
 from apps.providers.models import NewsSource, ProviderType
 from apps.scheduler.models import Job, JobStatus, JobType
+from apps.scripts.models import Script, ScriptStatus
 from services.admin.content_library import ContentLibraryError, ContentLibraryService
 
 
 @pytest.mark.django_db
 def test_content_page_renders_unified_table(admin_client, news_source: NewsSource) -> None:
-    Article.objects.create(
+    article = Article.objects.create(
         title="RSS Story",
         source=news_source,
         url="https://example.com/rss-story",
         content_hash="rss-story-hash",
         status=ArticleStatus.COLLECTED,
     )
+    live_episode = Episode.objects.create(
+        title="Live episode",
+        status=EpisodeStatus.COMPLETED,
+        publish=1,
+    )
+    EpisodeArticle.objects.create(episode=live_episode, article=article)
     response = admin_client.get(reverse("operations:content"))
     content = response.content.decode()
     assert "Articles" in content
@@ -29,6 +35,8 @@ def test_content_page_renders_unified_table(admin_client, news_source: NewsSourc
     assert "generateScriptModal" in content
     assert 'id="generate-script-btn"' in content
     assert 'name="episode_title"' in content
+    assert "Live Articles" in content
+    assert "Live in 1 episode" in content
 
 
 @pytest.mark.django_db
@@ -365,3 +373,4 @@ def test_content_library_service_counts() -> None:
     totals = ContentLibraryService().article_totals()
     assert "total_articles" in totals
     assert "selected_for_script" in totals
+    assert "live_articles" in totals

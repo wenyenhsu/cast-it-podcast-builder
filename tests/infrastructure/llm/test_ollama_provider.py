@@ -87,6 +87,27 @@ class TestOllamaProvider:
         assert response.content == "Generated text"
         assert response.completion_tokens == 3
 
+    def test_chat_sends_json_schema_to_ollama(
+        self,
+        provider_config: LLMProviderConfig,
+    ) -> None:
+        http_client = MagicMock()
+        http_client.post.return_value = MockHTTPResponse(
+            {
+                "model": "test-chat-model",
+                "message": {"role": "assistant", "content": '{"ok": true}'},
+                "done": True,
+            }
+        )
+        provider = OllamaProvider(provider_config, http_client=http_client)
+        schema = {"type": "object", "properties": {"ok": {"type": "boolean"}}}
+
+        provider.chat(
+            LLMRequest(user_prompt="Return JSON", json_mode=True, json_schema=schema)
+        )
+
+        assert http_client.post.call_args.kwargs["json"]["format"] == schema
+
     def test_list_models_returns_normalized_metadata(
         self,
         provider_config: LLMProviderConfig,

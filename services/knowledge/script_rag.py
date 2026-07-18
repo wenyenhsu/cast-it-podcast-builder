@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 from apps.knowledge.models import SourceType
 from domain.knowledge.dtos import RetrievalFilter
 from domain.knowledge.exceptions import ContextBuildError, RetrievalError
-from services.knowledge.article_indexing import index_articles_best_effort, is_rag_enabled
+from services.knowledge.article_indexing import index_articles_best_effort
 from services.knowledge.context_builder import ContextBuilder
 from services.knowledge.settings import KnowledgeSettings
 
@@ -31,7 +31,7 @@ class ScriptRagResult:
 
 
 class ScriptRagService:
-    """Indexes episode articles and retrieves supplemental context for script prompts."""
+    """Retrieve supplemental article context for script prompts."""
 
     def __init__(
         self,
@@ -108,9 +108,56 @@ class ScriptRagService:
             enabled=True,
         )
 
+    def enrich_article(
+        self,
+        episode: Episode,
+        article: Article,
+    ) -> ScriptRagResult:
+        """Retrieve context constrained to one article's indexed chunks."""
+        if not self._settings.enabled:
+            return ScriptRagResult("", 0, 0, False)
+
+        articles_indexed = index_articles_best_effort([article])
+        query = "\n".join(
+            part for part in (article.title.strip(), article.summary.strip()) if part
+        )
+        if not query:
+            return ScriptRagResult("", 0, articles_indexed, True)
+
+        try:
+            builder = self._context_builder or ContextBuilder(self._settings)
+            assembled = builder.build(
+                query,
+                filters=RetrievalFilter(
+                    language=article.language or episode.language,
+                    source_type=SourceType.ARTICLE,
+                    source_id=str(article.id),
+                ),
+            )
+        except (RetrievalError, ContextBuildError) as exc:
+            logger.warning(
+                "Article-specific script RAG context skipped",
+                extra={
+                    "event": "script_article_rag_context_failed",
+                    "episode_id": str(episode.id),
+                    "article_id": str(article.id),
+                    "error": str(exc),
+                },
+            )
+            return ScriptRagResult("", 0, articles_indexed, True)
+
+        return ScriptRagResult(
+            context_text=assembled.context_text,
+            chunks_used=assembled.chunks_used,
+            articles_indexed=articles_indexed,
+            enabled=True,
+        )
+
 
 def _build_retrieval_query(episode: Episode, articles: list[Article]) -> str:
-    titles = "; ".join(article.title.strip() for article in articles[:8] if article.title)
+    titles = "; ".join(
+        article.title.strip() for article in articles[:8] if article.title
+    )
     categories = ", ".join(
         sorted({article.category.strip() for article in articles if article.category})
     )

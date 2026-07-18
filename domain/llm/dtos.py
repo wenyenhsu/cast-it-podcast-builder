@@ -1,6 +1,7 @@
 """LLM request and response data transfer objects."""
 
 from dataclasses import dataclass, field
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -13,6 +14,7 @@ class LLMRequest:
     top_p: float | None = None
     max_tokens: int | None = None
     json_mode: bool = False
+    json_schema: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True)

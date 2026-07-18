@@ -1,8 +1,9 @@
 """Admin configuration for articles app."""
 
 from django.contrib import admin
-from django.db.models import QuerySet
+from django.db.models import Count, Q, QuerySet
 from django.http import HttpRequest
+from django.utils.html import format_html
 
 from apps.articles.models import Article, ArticleTag, Tag
 from apps.core.admin.badges import status_badge
@@ -21,12 +22,20 @@ class ArticleAdmin(AdminActionMixin, admin.ModelAdmin):
         "title",
         "source",
         "status_display",
+        "script_source_status",
+        "live_status",
         "category",
         "importance_score",
         "published_at",
         "created_at",
     )
-    list_filter = ("status", "language", "category", "source")
+    list_filter = (
+        "selected_for_script",
+        "status",
+        "language",
+        "category",
+        "source",
+    )
     search_fields = ("title", "author", "url", "content_hash", "summary", "content")
     readonly_fields = (
         "id",
@@ -51,9 +60,30 @@ class ArticleAdmin(AdminActionMixin, admin.ModelAdmin):
         "add_to_episode",
     )
 
+    def get_queryset(self, request: HttpRequest) -> QuerySet[Article]:
+        queryset: QuerySet[Article] = super().get_queryset(request)
+        return queryset.annotate(
+            _public_episode_count=Count(
+                "episodes",
+                filter=Q(episodes__publish=1),
+                distinct=True,
+            )
+        )
+
     @admin.display(description="Status")
     def status_display(self, obj: Article) -> str:
         return status_badge(obj.status)
+
+    @admin.display(description="Script Source", boolean=True)
+    def script_source_status(self, obj: Article) -> bool:
+        return obj.selected_for_script
+
+    @admin.display(description="Live")
+    def live_status(self, obj: Article) -> str:
+        count = getattr(obj, "_public_episode_count", 0)
+        if count:
+            return format_html('<span style="color:#198754">Live ({})</span>', count)
+        return format_html('<span style="color:#6c757d">Not live</span>')
 
     @admin.action(description="Re-summarize selected articles")
     def resummarize_selected(

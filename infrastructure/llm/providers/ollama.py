@@ -69,7 +69,9 @@ class OllamaProvider(BaseLLMProvider):
             "stream": False,
             "options": self._build_options(request),
         }
-        if request.json_mode:
+        if request.json_schema is not None:
+            payload["format"] = request.json_schema
+        elif request.json_mode:
             payload["format"] = "json"
 
         data = self._post("/api/generate", payload)
@@ -85,7 +87,9 @@ class OllamaProvider(BaseLLMProvider):
             "stream": False,
             "options": self._build_options(request),
         }
-        if request.json_mode:
+        if request.json_schema is not None:
+            payload["format"] = request.json_schema
+        elif request.json_mode:
             payload["format"] = "json"
 
         data = self._post("/api/chat", payload)
@@ -106,7 +110,9 @@ class OllamaProvider(BaseLLMProvider):
             "stream": True,
             "options": self._build_options(request),
         }
-        if request.json_mode:
+        if request.json_schema is not None:
+            payload["format"] = request.json_schema
+        elif request.json_mode:
             payload["format"] = "json"
 
         url = f"{self._base_url}/api/chat"
@@ -277,7 +283,7 @@ class OllamaProvider(BaseLLMProvider):
             ),
             # Ollama's default context window (often 4096) truncates long
             # prompts/outputs such as full podcast scripts.
-            "num_ctx": int(os.environ.get("OLLAMA_NUM_CTX", "8192")),
+            "num_ctx": int(os.environ.get("OLLAMA_NUM_CTX", "16384")),
         }
         if request.top_p is not None:
             options["top_p"] = request.top_p

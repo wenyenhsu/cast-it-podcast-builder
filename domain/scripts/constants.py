@@ -1,6 +1,6 @@
 """Script generation configuration constants."""
 
-PROMPT_VERSION = "v1.0.0"
+PROMPT_VERSION = "v2.0.0"
 MIN_SEGMENTS = 20
 MAX_SEGMENTS = 80
 MAX_ESTIMATED_DURATION_SECONDS = 30 * 60

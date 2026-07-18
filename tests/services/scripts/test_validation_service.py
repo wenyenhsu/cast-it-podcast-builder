@@ -10,7 +10,11 @@ from domain.scripts.exceptions import (
     ScriptSchemaError,
     ScriptValidationError,
 )
-from domain.scripts.schema import PodcastScriptSchema, ScriptSegmentSchema
+from domain.scripts.schema import (
+    ChapterCriticSchema,
+    PodcastScriptSchema,
+    ScriptSegmentSchema,
+)
 from services.scripts.validation_service import (
     ScriptValidationConfig,
     ScriptValidationService,
@@ -86,3 +90,64 @@ def test_validate_success_returns_duration(
     assert result.passed is True
     assert result.segment_count == 6
     assert result.estimated_duration_seconds > 0
+
+
+def test_validate_rejects_critic_unsupported_claim() -> None:
+    service = ScriptValidationService(
+        config=ScriptValidationConfig(min_segments=4, max_segments=20)
+    )
+    schema = service.parse_json(build_valid_script_json(segment_count=6))
+    critic = ChapterCriticSchema(
+        passed=False,
+        score=30,
+        unsupported_claims=["The dialogue invented a 50% improvement."],
+    )
+
+    with pytest.raises(ScriptValidationError, match="50% improvement"):
+        service.validate(schema, critics=[critic], expected_language="en")
+
+
+def test_validate_rejects_language_mismatch() -> None:
+    service = ScriptValidationService(
+        config=ScriptValidationConfig(min_segments=4, max_segments=20)
+    )
+    schema = service.parse_json(build_valid_script_json(segment_count=6))
+    critic = ChapterCriticSchema(
+        passed=False,
+        score=40,
+        language_matches=False,
+        language_issues=["The chapter is written in Spanish."],
+    )
+
+    with pytest.raises(ScriptValidationError, match="does not match language en"):
+        service.validate(schema, critics=[critic], expected_language="en")
+
+
+@pytest.mark.parametrize(
+    ("field", "issue", "message"),
+    [
+        ("repetitions", "The chapter repeats its opening.", "repetition issues"),
+        ("dialogue_issues", "The exchange is mechanical.", "dialogue issues"),
+        ("coherence_issues", "The conclusion does not follow.", "coherence issues"),
+        ("transition_issues", "The hand-off is missing.", "transition issues"),
+    ],
+)
+def test_validate_warns_for_critic_editorial_issues(
+    field: str,
+    issue: str,
+    message: str,
+) -> None:
+    service = ScriptValidationService(
+        config=ScriptValidationConfig(min_segments=4, max_segments=20)
+    )
+    schema = service.parse_json(build_valid_script_json(segment_count=6))
+    critic = ChapterCriticSchema(
+        passed=True,
+        score=90,
+        **{field: [issue]},
+    )
+
+    result = service.validate(schema, critics=[critic], expected_language="en")
+
+    assert result.passed is True
+    assert any(message in warning for warning in result.warnings)

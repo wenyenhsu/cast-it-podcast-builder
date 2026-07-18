@@ -110,7 +110,13 @@ class PublishService:
 
         if not failures:
             episode.status = EpisodeStatus.COMPLETED
-            episode.save(update_fields=["status", "updated_at"])
+            episode.publish = 1
+            episode.save(update_fields=["status", "publish", "updated_at"])
+        elif platform_results:
+            # At least one configured destination is live. Expose the episode to
+            # the listener shelf while retaining the partial publishing status.
+            episode.publish = 1
+            episode.save(update_fields=["publish", "updated_at"])
 
         elapsed = time.monotonic() - started
         logger.info(

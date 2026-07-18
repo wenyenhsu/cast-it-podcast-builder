@@ -11,7 +11,18 @@ def test_build_system_prompt_includes_personas(
     assert "Expert persona rules." in prompt
     assert "Beginner persona rules." in prompt
     assert "Validation rules apply." in prompt
-    assert "v1.0.0" in prompt
+    assert "v2.0.0" in prompt
+
+
+def test_build_system_prompt_uses_stage_segment_limits(
+    script_prompt_builder: ScriptPromptBuilder,
+) -> None:
+    prompt = script_prompt_builder.build_system_prompt(
+        min_segments=5,
+        max_segments=8,
+    )
+
+    assert "min=5 max=8" in prompt
 
 
 def test_build_user_prompt_escapes_untrusted_article_content(
@@ -44,3 +55,19 @@ def test_build_user_prompt_includes_article_metadata(
     assert "OpenAI Announces GPT-5" in prompt
     assert "Importance Score: 90" in prompt
     assert "AI" in prompt
+
+
+def test_story_brief_prompt_includes_cleaned_article_content(
+    script_prompt_builder: ScriptPromptBuilder,
+    sample_article: Article,
+) -> None:
+    sample_article.content = "<p>Full <strong>source</strong> evidence.</p>"
+    prompt, source = script_prompt_builder.build_story_brief_prompt(
+        sample_article,
+        language="zh-TW",
+        source_max_tokens=100,
+    )
+
+    assert source == "Full source evidence."
+    assert "Full source evidence." in prompt
+    assert "Language: zh-TW" in prompt

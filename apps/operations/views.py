@@ -3,6 +3,7 @@
 import logging
 
 from django.contrib import messages
+from django.db.models import Count, Q
 from django.http import FileResponse, Http404, HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -10,20 +11,20 @@ from django.urls import reverse
 from apps.articles.models import Article
 from apps.audio.models import AudioAsset, AudioAssetStatus
 from apps.episodes.models import Episode
-from apps.scheduler.models import Job, JobStatus
 from apps.operations.decorators import staff_required
 from apps.providers.models import ProviderType
+from apps.scheduler.models import Job, JobStatus
 from apps.scripts.models import Script, ScriptStatus
 from services.admin.content_library import ContentLibraryError, ContentLibraryService
+from services.admin.dispatch import AdminJobDispatchService
 from services.admin.health import AdminHealthService
+from services.admin.job_progress import JobProgressService
 from services.admin.log_query import LogQueryService
+from services.admin.manual_script import ManualScriptError, ManualScriptService
 from services.admin.metrics import MetricsService
 from services.admin.news_sources import NewsSourceDashboardService, NewsSourceFormError
 from services.admin.pipeline import EpisodePipelineService
 from services.admin.provider_status import ProviderDashboardService
-from services.admin.dispatch import AdminJobDispatchService
-from services.admin.job_progress import JobProgressService
-from services.admin.manual_script import ManualScriptError, ManualScriptService
 from services.admin.scripts_dashboard import ScriptDashboardService
 from services.admin.stats import DashboardStatsService
 from services.audio.utils.paths import resolve_media_path
@@ -777,7 +778,13 @@ def logs_viewer(request: HttpRequest) -> HttpResponse:
 @staff_required
 def article_detail(request: HttpRequest, article_id: str) -> HttpResponse:
     article = get_object_or_404(
-        Article.objects.select_related("source"),
+        Article.objects.select_related("source").annotate(
+            public_episode_count=Count(
+                "episodes",
+                filter=Q(episodes__publish=1),
+                distinct=True,
+            )
+        ),
         pk=article_id,
     )
     resource = (

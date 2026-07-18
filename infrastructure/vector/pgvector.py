@@ -135,6 +135,8 @@ def _apply_filters(
         qs = qs.filter(document__language=filters.language)
     if filters.source_type:
         qs = qs.filter(document__source_type=filters.source_type)
+    if filters.source_id:
+        qs = qs.filter(document__source_id=filters.source_id)
     if filters.category:
         qs = qs.filter(document__metadata__category=filters.category)
     if filters.episode_id:

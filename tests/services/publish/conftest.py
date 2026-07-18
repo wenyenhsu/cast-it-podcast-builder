@@ -5,8 +5,10 @@ from pathlib import Path
 import pytest
 from django.utils import timezone
 
+from apps.articles.models import Article, ArticleStatus
 from apps.audio.models import AudioAsset, AudioAssetStatus
-from apps.episodes.models import Episode, EpisodeStatus
+from apps.episodes.models import Episode, EpisodeArticle, EpisodeStatus
+from apps.providers.models import NewsSource, ProviderType
 from infrastructure.publish.providers.youtube.client import StubYouTubeAPIClient
 from infrastructure.publish.providers.youtube.publisher import YouTubePublisher
 from services.publish.settings import PublishSettings
@@ -20,6 +22,7 @@ def publish_settings(tmp_path: Path) -> PublishSettings:
         youtube_api_key="test-api-key",
         youtube_client_id="client-id",
         youtube_client_secret="client-secret",
+        youtube_refresh_token="refresh-token",
         youtube_channel_id="channel-id",
         enable_youtube_publishing=True,
         enable_rss_publishing=True,
@@ -45,6 +48,18 @@ def publishable_episode(db: None, tmp_path: Path) -> Episode:
         duration_seconds=600,
         publish_date=timezone.now().date(),
     )
+    source = NewsSource.objects.create(
+        name="Publish Test Source",
+        provider_type=ProviderType.RSS,
+    )
+    article = Article.objects.create(
+        source=source,
+        title="Publishable source article",
+        url="https://example.com/publishable-source",
+        content_hash=f"publishable-{episode.id}",
+        status=ArticleStatus.SELECTED,
+    )
+    EpisodeArticle.objects.create(episode=episode, article=article)
     audio_path = tmp_path / "media" / "audio" / "episode-final.mp3"
     audio_path.parent.mkdir(parents=True)
     audio_path.write_bytes(b"fake-audio-bytes")

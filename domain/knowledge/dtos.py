@@ -44,6 +44,7 @@ class RetrievalFilter:
 
     language: str | None = None
     source_type: str | None = None
+    source_id: str | None = None
     category: str | None = None
     publish_date_from: date | None = None
     publish_date_to: date | None = None

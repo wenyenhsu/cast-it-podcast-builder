@@ -34,6 +34,16 @@ class PublishValidationService:
             )
         if not episode.title.strip():
             raise PublishValidationError("Episode title is required for publishing.")
+        has_linked_articles = episode.articles.exists()
+        has_active_manual_script = episode.scripts.filter(
+            llm_provider="manual",
+            metadata__is_active=True,
+        ).exists()
+        if not has_linked_articles and not has_active_manual_script:
+            raise PublishValidationError(
+                "Episode must include at least one article or an active manual script "
+                "before publishing."
+            )
         if episode.duration_seconds is None or episode.duration_seconds <= 0:
             raise PublishValidationError(
                 "Episode duration must be a positive number of seconds."

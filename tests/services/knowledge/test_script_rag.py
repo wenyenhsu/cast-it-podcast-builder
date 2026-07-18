@@ -124,3 +124,45 @@ def test_enrich_gracefully_handles_retrieval_failure(news_source) -> None:
     assert result.enabled is True
     assert result.context_text == ""
     assert result.chunks_used == 0
+
+
+@pytest.mark.django_db
+@override_settings(RAG_ENABLED=True)
+def test_enrich_article_filters_by_source_id(news_source) -> None:
+    article = Article.objects.create(
+        source=news_source,
+        title="One article only",
+        url="https://example.com/one-article",
+        summary="Article summary",
+        content="Long article body",
+        status=ArticleStatus.SELECTED,
+    )
+    episode = Episode.objects.create(
+        title="Weekly AI News",
+        summary="Top stories",
+        language="zh-TW",
+        status=EpisodeStatus.DRAFT,
+    )
+    context_builder = MagicMock()
+    context_builder.build.return_value = AssembledContext(
+        query=article.title,
+        blocks=[],
+        context_text="Article-specific excerpt.",
+        total_tokens=10,
+        chunks_retrieved=1,
+        chunks_used=1,
+    )
+
+    with patch(
+        "services.knowledge.script_rag.index_articles_best_effort",
+        return_value=1,
+    ):
+        result = ScriptRagService(context_builder=context_builder).enrich_article(
+            episode, article
+        )
+
+    filters = context_builder.build.call_args.kwargs["filters"]
+    assert filters.source_id == str(article.id)
+    assert filters.source_type == "article"
+    assert filters.language == article.language
+    assert result.context_text == "Article-specific excerpt."

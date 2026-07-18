@@ -11,6 +11,7 @@ from services.publish.settings import PublishSettings
 @override_settings(
     YOUTUBE_CLIENT_ID="id",
     YOUTUBE_CLIENT_SECRET="secret",
+    YOUTUBE_REFRESH_TOKEN="refresh-token",
     YOUTUBE_CHANNEL_ID="channel",
     ENABLE_YOUTUBE_PUBLISHING=True,
     ENABLE_RSS_PUBLISHING=True,
@@ -30,6 +31,7 @@ def test_resolve_feed_output_path_relative(tmp_path: Path) -> None:
         youtube_api_key="",
         youtube_client_id="",
         youtube_client_secret="",
+        youtube_refresh_token="",
         youtube_channel_id="",
         enable_youtube_publishing=False,
         enable_rss_publishing=True,
@@ -63,6 +65,7 @@ def test_enabled_platforms(
         youtube_api_key="",
         youtube_client_id="id" if youtube_enabled else "",
         youtube_client_secret="secret" if youtube_enabled else "",
+        youtube_refresh_token="refresh-token" if youtube_enabled else "",
         youtube_channel_id="channel" if youtube_enabled else "",
         enable_youtube_publishing=youtube_enabled,
         enable_rss_publishing=rss_enabled,

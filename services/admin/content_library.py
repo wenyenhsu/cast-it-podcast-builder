@@ -2,6 +2,7 @@
 
 from typing import Any
 
+from django.db.models import Count, Q
 from django.utils import timezone
 
 from apps.articles.models import Article
@@ -41,6 +42,9 @@ class ContentLibraryService:
             "selected_for_script": Article.objects.filter(
                 selected_for_script=True
             ).count(),
+            "live_articles": Article.objects.filter(episodes__publish=1)
+            .distinct()
+            .count(),
         }
 
     def list_articles(
@@ -48,7 +52,17 @@ class ContentLibraryService:
         *,
         provider_type: str | None = None,
     ) -> list[dict[str, Any]]:
-        articles = Article.objects.select_related("source").order_by("-created_at")
+        articles = (
+            Article.objects.select_related("source")
+            .annotate(
+                public_episode_count=Count(
+                    "episodes",
+                    filter=Q(episodes__publish=1),
+                    distinct=True,
+                )
+            )
+            .order_by("-created_at")
+        )
         if provider_type:
             articles = articles.filter(source__provider_type=provider_type)
         return [
@@ -62,6 +76,8 @@ class ContentLibraryService:
                 "created_at": article.created_at,
                 "status": article.status,
                 "selected_for_script": article.selected_for_script,
+                "is_live": article.public_episode_count > 0,
+                "public_episode_count": article.public_episode_count,
             }
             for article in articles
         ]

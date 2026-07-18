@@ -14,6 +14,11 @@
       {% if article.selected_for_script %}
       <span class="badge text-bg-primary ms-1">Script Source</span>
       {% endif %}
+      {% if article.public_episode_count %}
+      <span class="badge text-bg-success ms-1">Live in {{ article.public_episode_count }} episode{{ article.public_episode_count|pluralize }}</span>
+      {% else %}
+      <span class="badge text-bg-light border text-secondary ms-1">Not Live</span>
+      {% endif %}
     </p>
   </div>
   <div class="d-flex flex-wrap gap-2">

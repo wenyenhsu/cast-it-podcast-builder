@@ -136,6 +136,12 @@ def test_article_detail_view(admin_client, news_source: NewsSource) -> None:
         content="Full article body text.",
         status=ArticleStatus.COLLECTED,
     )
+    live_episode = Episode.objects.create(
+        title="Live detail episode",
+        status=EpisodeStatus.COMPLETED,
+        publish=1,
+    )
+    live_episode.articles.add(article)
     response = admin_client.get(
         reverse("operations:article_detail", args=[article.pk]),
     )
@@ -144,6 +150,7 @@ def test_article_detail_view(admin_client, news_source: NewsSource) -> None:
     assert "Detail Article" in content
     assert "Full article body text." in content
     assert "Short summary" in content
+    assert "Live in 1 episode" in content
 
 
 @pytest.mark.django_db

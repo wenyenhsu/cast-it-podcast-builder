@@ -1,6 +1,7 @@
 """Script validation service."""
 
 import logging
+import re
 from dataclasses import dataclass, field
 
 from domain.scripts.constants import (
@@ -16,6 +17,7 @@ from domain.scripts.exceptions import (
 )
 from domain.scripts.schema import (
     REQUIRED_SPEAKERS,
+    ChapterCriticSchema,
     PodcastScriptSchema,
     ScriptSegmentSchema,
 )
@@ -73,7 +75,13 @@ class ScriptValidationService:
         )
         return schema
 
-    def validate(self, script: PodcastScriptSchema) -> ScriptValidationResult:
+    def validate(
+        self,
+        script: PodcastScriptSchema,
+        *,
+        critics: list[ChapterCriticSchema] | None = None,
+        expected_language: str = "",
+    ) -> ScriptValidationResult:
         """Run full business validation on a parsed script."""
         errors: list[str] = []
         warnings: list[str] = []
@@ -99,6 +107,13 @@ class ScriptValidationService:
 
         self._validate_empty_text(script.segments, errors)
         self._validate_speaker_sequence(script.segments, errors, warnings)
+        self._validate_content_quality(
+            script.segments,
+            critics or [],
+            expected_language,
+            errors,
+            warnings,
+        )
 
         estimated_duration = estimate_total_duration_seconds(
             script.segments,
@@ -140,6 +155,67 @@ class ScriptValidationService:
             raise ScriptValidationError("; ".join(errors))
 
         return result
+
+    def _validate_content_quality(
+        self,
+        segments: list[ScriptSegmentSchema],
+        critics: list[ChapterCriticSchema],
+        expected_language: str,
+        errors: list[str],
+        warnings: list[str],
+    ) -> None:
+        """Reject critic-detected grounding failures and obvious repetition."""
+        for index, critic in enumerate(critics, start=1):
+            if critic.unsupported_claims:
+                errors.append(
+                    f"Chapter {index} has unsupported claims: "
+                    + "; ".join(critic.unsupported_claims)
+                )
+            if critic.missing_facts:
+                warnings.append(
+                    f"Chapter {index} is missing facts: "
+                    + "; ".join(critic.missing_facts)
+                )
+            if not critic.language_matches:
+                errors.append(
+                    f"Chapter {index} does not match language {expected_language}: "
+                    + "; ".join(critic.language_issues or ["language mismatch"])
+                )
+            elif critic.language_issues:
+                warnings.append(
+                    f"Chapter {index} has language style issues: "
+                    + "; ".join(critic.language_issues)
+                )
+            for label, issues in (
+                ("repetition", critic.repetitions),
+                ("dialogue", critic.dialogue_issues),
+                ("coherence", critic.coherence_issues),
+                ("transition", critic.transition_issues),
+            ):
+                if issues:
+                    warnings.append(
+                        f"Chapter {index} has {label} issues: " + "; ".join(issues)
+                    )
+            if not critic.passed:
+                if critic.unsupported_claims or not critic.language_matches:
+                    errors.append(f"Chapter {index} did not pass content review.")
+                else:
+                    warnings.append(
+                        f"Chapter {index} reached the rewrite limit with "
+                        "editorial issues."
+                    )
+
+        seen: set[str] = set()
+        for index, segment in enumerate(segments, start=1):
+            normalized = re.sub(r"\W+", " ", segment.text.lower()).strip()
+            if len(normalized) < 30:
+                continue
+            if normalized in seen:
+                errors.append(f"Segment {index} exactly repeats an earlier segment.")
+            seen.add(normalized)
+
+        if not critics:
+            warnings.append("No structured chapter critic results were provided.")
 
     def _validate_empty_text(
         self,
