@@ -17,7 +17,9 @@ BASE = "http://localhost:8000/api/v1"
 STAGES = [
     ("import_news", "apps.scheduler.tasks.import_news", "import_news_scheduled"),
     ("episode_planning", "apps.scheduler.tasks.planning", "episode_planning_scheduled"),
-    ("generate_script", "apps.scheduler.tasks.script", "generate_script_scheduled"),
+    # generate_script is dispatched separately: the handler requires an
+    # explicit episode_id (automatic scheduling was disabled in favor of
+    # the Content UI; this driver supplies the id programmatically).
     ("generate_audio", "apps.scheduler.tasks.audio", "generate_audio_scheduled"),
     ("publish_episode", "apps.scheduler.tasks.publish", "publish_episode_scheduled"),
 ]
@@ -56,8 +58,41 @@ def wait_stage(job_type: str, before_id: str | None, timeout_s: int = 3600) -> b
     return False
 
 
+def newest_episode_id() -> str | None:
+    data = api("/episodes/?ordering=-created_at&page_size=1")
+    results = data.get("results", [])
+    return results[0]["id"] if results else None
+
+
+def dispatch_script_for(episode_id: str) -> None:
+    code = (
+        "from apps.scheduler.tasks.base import create_scheduled_job; "
+        "from apps.scheduler.models import JobType; "
+        f"print(create_scheduled_job(JobType.GENERATE_SCRIPT, "
+        f"payload={{'episode_id': '{episode_id}', 'scheduled': True}}))"
+    )
+    subprocess.run(
+        ["docker", "compose", "exec", "-T", "web",
+         "python", "manage.py", "shell", "-c", code],
+        check=True, capture_output=True, text=True, cwd=REPO,
+    )
+
+
 def main() -> int:
     for job_type, module, func in STAGES:
+        if job_type == "generate_audio":
+            # Script first: handler needs the episode id from planning.
+            episode_id = newest_episode_id()
+            if not episode_id:
+                print("no episode to script")
+                return 1
+            prev = newest_job("generate_script")
+            prev_id = prev["id"] if prev else None
+            print(f"--- dispatching generate_script for {episode_id}")
+            dispatch_script_for(episode_id)
+            if not wait_stage("generate_script", prev_id):
+                return 1
+
         prev = newest_job(job_type)
         prev_id = prev["id"] if prev else None
         print(f"--- dispatching {job_type}")

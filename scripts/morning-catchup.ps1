@@ -31,12 +31,13 @@ while ((Get-Date) -lt $deadline) {
 }
 if (-not $apiUp) { Log "API not reachable; giving up this cycle"; exit 1 }
 
-# Already have an episode today? Then nothing to do.
+# Already have a COMPLETED episode today? Then nothing to do. (A draft
+# row appears right after planning; completion means audio was built.)
 try {
     $r = Invoke-RestMethod "http://localhost:8000/api/v1/episodes/?ordering=-created_at&page_size=1" -TimeoutSec 15
-    $latest = $r.results[0].created_at
-    if ($latest -and ([datetime]$latest).Date -eq (Get-Date).Date) {
-        Log "episode already exists today ($latest); ok"
+    $latest = $r.results[0]
+    if ($latest.created_at -and ([datetime]$latest.created_at).Date -eq (Get-Date).Date -and $latest.status -eq "completed") {
+        Log "completed episode already exists today ($($latest.created_at)); ok"
         exit 0
     }
 } catch { Log "episode check failed: $_"; exit 1 }
