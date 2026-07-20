@@ -428,6 +428,18 @@ class ScriptGenerationService:
         )
         coherent = self._accept_coherence_result(coherence_result, merged)
 
+        if not self._pipeline.post_coherence_critic:
+            self._critic_results = initial_critics
+            self._last_rag_result = _aggregate_rag_results(rag_by_id.values())
+            self._last_pipeline_metadata = {
+                "outline": outline.model_dump(),
+                "story_briefs": [brief.model_dump() for brief in briefs],
+                "initial_critics": [critic.model_dump() for critic in initial_critics],
+                "critics": [critic.model_dump() for critic in initial_critics],
+                "post_coherence_critic": False,
+            }
+            return coherent
+
         final_segments: list[ScriptSegmentSchema] = []
         final_critics: list[ChapterCriticSchema] = []
         covered = []
@@ -482,6 +494,7 @@ class ScriptGenerationService:
             "story_briefs": [brief.model_dump() for brief in briefs],
             "initial_critics": [critic.model_dump() for critic in initial_critics],
             "critics": [critic.model_dump() for critic in final_critics],
+            "post_coherence_critic": True,
         }
         return coherent
 
@@ -529,16 +542,26 @@ class ScriptGenerationService:
             )
 
         accepted: list[ScriptSegmentSchema] = []
+        restored_identity = 0
         for revised, source in zip(result.segments, original.segments, strict=True):
+            payload = revised.model_dump(exclude={"segment_index"})
             if revised.speaker != source.speaker or revised.voice != source.voice:
-                raise ScriptValidationError(
-                    "Coherence pass changed a segment speaker or voice."
-                )
-            segment = ScriptSegmentSchema.model_validate(
-                revised.model_dump(exclude={"segment_index"})
-            )
+                # Keep text polish; restore immutable TTS identity instead of failing
+                # a long multi-stage run on common model drift.
+                restored_identity += 1
+                payload["speaker"] = source.speaker
+                payload["voice"] = source.voice
+            segment = ScriptSegmentSchema.model_validate(payload)
             segment.article_id = source.article_id
             accepted.append(segment)
+        if restored_identity:
+            logger.warning(
+                "Coherence pass drifted speaker/voice; restored originals",
+                extra={
+                    "event": "script_coherence_identity_restored",
+                    "restored_segments": restored_identity,
+                },
+            )
         return PodcastScriptSchema(
             title=result.title,
             summary=result.summary,

@@ -38,6 +38,63 @@ def test_pipeline_stages_for_episode(news_source) -> None:
 
 
 @pytest.mark.django_db
+def test_pipeline_duration_uses_article_timestamps(news_source) -> None:
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from apps.articles.models import Article, ArticleStatus
+    from apps.episodes.models import EpisodeArticle
+
+    now = timezone.now()
+    episode = Episode.objects.create(
+        title="Duration Pipeline",
+        status=EpisodeStatus.DRAFT,
+    )
+    first = Article.objects.create(
+        title="First",
+        source=news_source,
+        url="https://example.com/first-duration",
+        content_hash="duration-1",
+        status=ArticleStatus.SELECTED,
+        summary="Ready summary",
+        category="AI",
+        importance_score=90,
+        classified_at=now - timedelta(minutes=30),
+    )
+    second = Article.objects.create(
+        title="Second",
+        source=news_source,
+        url="https://example.com/second-duration",
+        content_hash="duration-2",
+        status=ArticleStatus.SELECTED,
+        summary="Ready summary",
+        category="AI",
+        importance_score=80,
+        classified_at=now - timedelta(minutes=20),
+    )
+    Article.objects.filter(pk=first.pk).update(created_at=now - timedelta(hours=1))
+    Article.objects.filter(pk=second.pk).update(created_at=now - timedelta(minutes=50))
+    first.refresh_from_db()
+    second.refresh_from_db()
+    EpisodeArticle.objects.create(episode=episode, article=first)
+    EpisodeArticle.objects.create(episode=episode, article=second)
+
+    stages = {
+        stage.name: stage for stage in EpisodePipelineService().build_pipeline(episode)
+    }
+
+    assert stages["News Collection"].display_status == "SUCCESS"
+    assert stages["News Collection"].duration_label == "—"
+    assert stages["Summary"].display_status == "SUCCESS"
+    assert stages["Classification"].display_status == "SUCCESS"
+    assert stages["Classification"].duration_seconds
+    assert stages["Classification"].duration_seconds > 0
+    assert stages["Ranking"].display_status == "SUCCESS"
+    assert stages["Script"].duration_label == "—"
+
+
+@pytest.mark.django_db
 def test_pipeline_as_dicts(news_source) -> None:
     episode = Episode.objects.create(
         title="Dict Pipeline",

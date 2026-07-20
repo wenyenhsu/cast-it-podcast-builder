@@ -53,11 +53,11 @@ def test_generate_creates_script_and_segments(
     assert script.metadata.source_article_ids
     script.metadata.refresh_from_db()
     assert script.metadata.is_active is True
-    assert script.metadata.token_usage["total_tokens"] == 1800
+    assert script.metadata.token_usage["total_tokens"] == 1500
 
     sample_episode.refresh_from_db()
     assert sample_episode.status == EpisodeStatus.DRAFT
-    assert mock_llm.chat.call_count == 6
+    assert mock_llm.chat.call_count == 5
 
 
 def test_generate_without_articles_raises(
@@ -119,7 +119,6 @@ def test_generate_uses_json_mode(
         2600,
         900,
         6000,
-        900,
     ]
 
 
@@ -328,7 +327,7 @@ def test_failed_critic_triggers_bounded_rewrite(
 
     service.generate(sample_episode)
 
-    assert mock_llm.chat.call_count == 8
+    assert mock_llm.chat.call_count == 7
     assert any(
         "Add the grounded release fact." in call.args[0].user_prompt
         for call in mock_llm.chat.call_args_list
@@ -406,7 +405,7 @@ def test_critic_retry_limit_accepts_grounded_editorial_warnings(
     script = service.generate(sample_episode)
 
     assert script.status == ScriptStatus.READY
-    assert mock_llm.chat.call_count == 8
+    assert mock_llm.chat.call_count == 7
 
 
 def test_post_coherence_critic_triggers_rewrite(
@@ -442,6 +441,9 @@ def test_post_coherence_critic_triggers_rewrite(
         validation_service=ScriptValidationService(
             config=ScriptValidationConfig(min_segments=4, max_segments=20)
         ),
+        config=ScriptGenerationConfig(
+            pipeline_settings=ScriptPipelineSettings(post_coherence_critic=True)
+        ),
     )
 
     script = service.generate(sample_episode)
@@ -452,18 +454,12 @@ def test_post_coherence_critic_triggers_rewrite(
         for call in mock_llm.chat.call_args_list
     )
     assert script.metadata.validation_results["pipeline"]["critics"][0]["passed"]
+    assert (
+        script.metadata.validation_results["pipeline"]["post_coherence_critic"] is True
+    )
 
 
-@pytest.mark.parametrize(
-    ("mutation", "message"),
-    [
-        ("order", "changed segment order"),
-        ("voice", "changed a segment speaker or voice"),
-    ],
-)
-def test_coherence_rejects_changed_segment_identity(
-    mutation: str,
-    message: str,
+def test_coherence_rejects_changed_segment_order(
     mock_llm: MagicMock,
     script_prompt_builder: ScriptPromptBuilder,
 ) -> None:
@@ -477,15 +473,37 @@ def test_coherence_rejects_changed_segment_identity(
     payload = original.model_dump()
     for index, segment in enumerate(payload["segments"]):
         segment["segment_index"] = index
-    if mutation == "order":
-        payload["segments"][0]["segment_index"] = 1
-        payload["segments"][1]["segment_index"] = 0
-    else:
-        payload["segments"][0]["voice"] = "different_voice"
+    payload["segments"][0]["segment_index"] = 1
+    payload["segments"][1]["segment_index"] = 0
     coherence = CoherenceScriptSchema.model_validate(payload)
 
-    with pytest.raises(ScriptValidationError, match=message):
+    with pytest.raises(ScriptValidationError, match="changed segment order"):
         service._accept_coherence_result(coherence, original)
+
+
+def test_coherence_restores_drifted_speaker_voice(
+    mock_llm: MagicMock,
+    script_prompt_builder: ScriptPromptBuilder,
+) -> None:
+    service = ScriptGenerationService(
+        llm_service=mock_llm,
+        prompt_builder=script_prompt_builder,
+    )
+    original = PodcastScriptSchema.model_validate_json(
+        build_valid_script_json(segment_count=4)
+    )
+    payload = original.model_dump()
+    for index, segment in enumerate(payload["segments"]):
+        segment["segment_index"] = index
+    payload["segments"][0]["voice"] = "different_voice"
+    payload["segments"][0]["text"] = "Polished opening line for coherence."
+    coherence = CoherenceScriptSchema.model_validate(payload)
+
+    accepted = service._accept_coherence_result(coherence, original)
+
+    assert accepted.segments[0].voice == original.segments[0].voice
+    assert accepted.segments[0].speaker == original.segments[0].speaker
+    assert accepted.segments[0].text == "Polished opening line for coherence."
 
 
 @pytest.mark.django_db

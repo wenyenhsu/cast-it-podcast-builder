@@ -17,6 +17,7 @@ class ScriptPipelineSettings:
     coherence_max_tokens: int = 6000
     critic_threshold: int = 75
     rewrite_retries: int = 1
+    post_coherence_critic: bool = False
 
     @classmethod
     def from_django_settings(cls) -> "ScriptPipelineSettings":
@@ -35,4 +36,7 @@ class ScriptPipelineSettings:
             ),
             critic_threshold=int(getattr(settings, "SCRIPT_CRITIC_THRESHOLD", 75)),
             rewrite_retries=int(getattr(settings, "SCRIPT_REWRITE_RETRIES", 1)),
+            post_coherence_critic=bool(
+                getattr(settings, "SCRIPT_POST_COHERENCE_CRITIC", False)
+            ),
         )
