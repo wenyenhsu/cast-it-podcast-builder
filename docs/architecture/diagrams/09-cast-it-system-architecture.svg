@@ -1,310 +1,306 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" width="1600" height="1000" role="img" aria-label="Cast It System Architecture">
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1600 1000" width="1600" height="1000" role="img" aria-label="Cast It System Architecture">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#0B1220"/>
-      <stop offset="100%" stop-color="#121A2F"/>
+      <stop offset="0%" stop-color="#0A1628"/>
+      <stop offset="100%" stop-color="#102030"/>
     </linearGradient>
     <linearGradient id="cardBlue" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#1E3A8A"/>
-      <stop offset="100%" stop-color="#1D4ED8"/>
-    </linearGradient>
-    <linearGradient id="cardPurple" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#4C1D95"/>
-      <stop offset="100%" stop-color="#6D28D9"/>
+      <stop offset="0%" stop-color="#1A6BB8"/>
+      <stop offset="100%" stop-color="#3B9AE8"/>
     </linearGradient>
     <linearGradient id="cardTeal" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#115E59"/>
-      <stop offset="100%" stop-color="#0F766E"/>
+      <stop offset="0%" stop-color="#0F9A88"/>
+      <stop offset="100%" stop-color="#20D0B0"/>
     </linearGradient>
-    <linearGradient id="cardOrange" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#9A3412"/>
-      <stop offset="100%" stop-color="#C2410C"/>
+    <linearGradient id="cardNavy" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#15243A"/>
+      <stop offset="100%" stop-color="#1E3A5F"/>
+    </linearGradient>
+    <linearGradient id="cardMint" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#149E8C"/>
+      <stop offset="100%" stop-color="#2DD4BF"/>
     </linearGradient>
     <filter id="soft" x="-10%" y="-10%" width="120%" height="120%">
       <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000" flood-opacity="0.35"/>
     </filter>
     <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#93C5FD"/>
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#7EC8F5"/>
     </marker>
-    <marker id="arrowGreen" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#34D399"/>
+    <marker id="arrowTeal" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#20D0B0"/>
     </marker>
     <style>
-      .title { font: 700 34px 'Segoe UI', Arial, sans-serif; fill: #F8FAFC; }
-      .subtitle { font: 400 16px 'Segoe UI', Arial, sans-serif; fill: #94A3B8; }
-      .section { font: 700 13px 'Segoe UI', Arial, sans-serif; fill: #E2E8F0; letter-spacing: 0.08em; }
-      .h { font: 700 14px 'Segoe UI', Arial, sans-serif; fill: #F8FAFC; }
-      .p { font: 400 11.5px 'Segoe UI', Arial, sans-serif; fill: #CBD5E1; }
-      .code { font: 600 10.5px ui-monospace, Menlo, Consolas, monospace; fill: #93C5FD; }
-      .muted { font: 400 11px 'Segoe UI', Arial, sans-serif; fill: #94A3B8; }
-      .badge { font: 700 11px 'Segoe UI', Arial, sans-serif; fill: #F8FAFC; }
-      .goalTitle { font: 700 12px 'Segoe UI', Arial, sans-serif; fill: #FDE68A; letter-spacing: 0.1em; }
-      .goalBody { font: 400 13px 'Segoe UI', Arial, sans-serif; fill: #FEF3C7; }
-      .stepNum { font: 700 18px 'Segoe UI', Arial, sans-serif; fill: #BFDBFE; }
-      .stepTitle { font: 700 13px 'Segoe UI', Arial, sans-serif; fill: #F8FAFC; }
-      .small { font: 400 10.5px 'Segoe UI', Arial, sans-serif; fill: #DBEAFE; }
-      .legend { font: 400 11px 'Segoe UI', Arial, sans-serif; fill: #CBD5E1; }
+      .title { font: 700 32px 'Segoe UI', Arial, sans-serif; fill: #7EC8F5; }
+      .subtitle { font: 400 15px 'Segoe UI', Arial, sans-serif; fill: #A8B8C8; }
+      .section { font: 700 13px 'Segoe UI', Arial, sans-serif; fill: #E8F4FC; letter-spacing: 0.08em; }
+      .h { font: 700 14px 'Segoe UI', Arial, sans-serif; fill: #F5FBFF; }
+      .p { font: 400 11.5px 'Segoe UI', Arial, sans-serif; fill: #C5D4E0; }
+      .code { font: 600 10.5px ui-monospace, Menlo, Consolas, monospace; fill: #7EC8F5; }
+      .muted { font: 400 11px 'Segoe UI', Arial, sans-serif; fill: #8FA3B5; }
+      .badge { font: 700 11px 'Segoe UI', Arial, sans-serif; fill: #F5FBFF; }
+      .goalTitle { font: 700 12px 'Segoe UI', Arial, sans-serif; fill: #20D0B0; letter-spacing: 0.1em; }
+      .goalBody { font: 400 13px 'Segoe UI', Arial, sans-serif; fill: #D7F8F1; }
+      .stepNum { font: 700 18px 'Segoe UI', Arial, sans-serif; fill: #C8E7FA; }
+      .stepTitle { font: 700 13px 'Segoe UI', Arial, sans-serif; fill: #F5FBFF; }
+      .small { font: 400 10.5px 'Segoe UI', Arial, sans-serif; fill: #E3F2FC; }
+      .legend { font: 400 11px 'Segoe UI', Arial, sans-serif; fill: #C5D4E0; }
     </style>
   </defs>
 
   <rect width="1600" height="1000" fill="url(#bg)"/>
-  <circle cx="140" cy="120" r="180" fill="#1D4ED8" opacity="0.08"/>
-  <circle cx="1480" cy="860" r="220" fill="#7C3AED" opacity="0.08"/>
+  <circle cx="160" cy="140" r="200" fill="#3B9AE8" opacity="0.07"/>
+  <circle cx="1460" cy="860" r="220" fill="#20D0B0" opacity="0.07"/>
 
-  <!-- Header -->
-  <text class="title" x="48" y="56">Cast It System Architecture</text>
-  <text class="subtitle" x="48" y="84">From Raw News to Published Podcast Episodes</text>
+  <!-- Header with logo -->
+  <image href="data:image/png;base64,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" x="36" y="18" width="72" height="72"/>
+  <text class="title" x="122" y="52">Cast It System Architecture</text>
+  <text class="subtitle" x="122" y="78">From Raw News to Published Podcast Episodes</text>
 
-  <rect x="980" y="28" width="572" height="72" rx="12" fill="#1F2937" stroke="#F59E0B" stroke-width="1.5" filter="url(#soft)"/>
-  <text class="goalTitle" x="1000" y="52">GOAL</text>
-  <text class="goalBody" x="1000" y="74">Automate the full podcast pipeline  ingest news, generate grounded</text>
-  <text class="goalBody" x="1000" y="90">LLM scripts, synthesize multi-voice audio, and publish.</text>
+  <rect x="980" y="24" width="572" height="76" rx="12" fill="#0F1C2E" stroke="#20D0B0" stroke-width="1.8" filter="url(#soft)"/>
+  <text class="goalTitle" x="1000" y="48">GOAL</text>
+  <text class="goalBody" x="1000" y="70">Automate the full podcast pipeline — ingest news, generate grounded</text>
+  <text class="goalBody" x="1000" y="88">LLM scripts, synthesize multi-voice audio, and publish.</text>
 
   <!-- 1. INPUT SOURCES -->
-  <rect x="32" y="128" width="250" height="520" rx="16" fill="#111827" stroke="#334155" stroke-width="1.5" filter="url(#soft)"/>
-  <text class="section" x="52" y="158">1. INPUT SOURCES</text>
+  <rect x="32" y="120" width="250" height="528" rx="16" fill="#0E1A2B" stroke="#3B9AE8" stroke-width="1.6" filter="url(#soft)"/>
+  <text class="section" x="52" y="150">1. INPUT SOURCES</text>
 
-  <rect x="52" y="176" width="210" height="36" rx="8" fill="#1E3A8A"/>
-  <text class="badge" x="68" y="199">RSS Feeds</text>
-  <rect x="52" y="220" width="210" height="36" rx="8" fill="#1E3A8A"/>
-  <text class="badge" x="68" y="243">Gmail Newsletters</text>
-  <rect x="52" y="264" width="210" height="36" rx="8" fill="#1E3A8A"/>
-  <text class="badge" x="68" y="287">Manual Articles</text>
-  <rect x="52" y="308" width="210" height="36" rx="8" fill="#1E3A8A"/>
-  <text class="badge" x="68" y="331">News HTML / API</text>
+  <rect x="52" y="168" width="210" height="36" rx="8" fill="#1A6BB8"/>
+  <text class="badge" x="68" y="191">RSS Feeds</text>
+  <rect x="52" y="212" width="210" height="36" rx="8" fill="#1A6BB8"/>
+  <text class="badge" x="68" y="235">Gmail Newsletters</text>
+  <rect x="52" y="256" width="210" height="36" rx="8" fill="#1A6BB8"/>
+  <text class="badge" x="68" y="279">Manual Articles</text>
+  <rect x="52" y="300" width="210" height="36" rx="8" fill="#1A6BB8"/>
+  <text class="badge" x="68" y="323">News HTML / API</text>
 
-  <text class="muted" x="52" y="372">ROADMAP</text>
-  <rect x="52" y="384" width="210" height="30" rx="8" fill="#1F2937" stroke="#475569"/>
-  <text class="p" x="68" y="404">YouTube / Podcasts</text>
-  <rect x="52" y="422" width="210" height="30" rx="8" fill="#1F2937" stroke="#475569"/>
-  <text class="p" x="68" y="442">PDF / Social Media</text>
+  <text class="muted" x="52" y="364">ROADMAP (FUTURE)</text>
+  <rect x="52" y="376" width="210" height="30" rx="8" fill="#122033" stroke="#2A4A68"/>
+  <text class="p" x="68" y="396">YouTube / Podcasts</text>
+  <rect x="52" y="414" width="210" height="30" rx="8" fill="#122033" stroke="#2A4A68"/>
+  <text class="p" x="68" y="434">PDF / Social Media</text>
 
-  <rect x="52" y="478" width="210" height="140" rx="12" fill="#0F172A" stroke="#38BDF8" stroke-dasharray="4 3"/>
-  <text class="h" x="68" y="508">Inbox Raw Articles</text>
-  <text class="p" x="68" y="532">Article model</text>
-  <text class="p" x="68" y="550">dedupe by content_hash</text>
-  <text class="p" x="68" y="568">selected_for_script</text>
-  <text class="code" x="68" y="596">apps/articles</text>
+  <rect x="52" y="470" width="210" height="148" rx="12" fill="#0A1524" stroke="#7EC8F5" stroke-dasharray="4 3"/>
+  <text class="h" x="68" y="500">Inbox Raw Articles</text>
+  <text class="p" x="68" y="524">Article model</text>
+  <text class="p" x="68" y="542">dedupe by content_hash</text>
+  <text class="p" x="68" y="560">selected_for_script</text>
+  <text class="code" x="68" y="588">apps/articles</text>
 
   <!-- 3. OUTPUTS -->
-  <rect x="1318" y="128" width="250" height="520" rx="16" fill="#111827" stroke="#334155" stroke-width="1.5" filter="url(#soft)"/>
-  <text class="section" x="1338" y="158">3. OUTPUTS</text>
+  <rect x="1318" y="120" width="250" height="528" rx="16" fill="#0E1A2B" stroke="#20D0B0" stroke-width="1.6" filter="url(#soft)"/>
+  <text class="section" x="1338" y="150">3. OUTPUTS</text>
 
-  <rect x="1338" y="176" width="210" height="52" rx="10" fill="url(#cardOrange)"/>
-  <text class="badge" x="1354" y="198">Podcast Scripts</text>
-  <text class="small" x="1354" y="216">segments � validation</text>
+  <rect x="1338" y="168" width="210" height="52" rx="10" fill="url(#cardMint)"/>
+  <text class="badge" x="1354" y="190">Podcast Scripts</text>
+  <text class="small" x="1354" y="208" style="fill:#E8FFFB">segments · validation</text>
 
-  <rect x="1338" y="238" width="210" height="52" rx="10" fill="url(#cardOrange)"/>
-  <text class="badge" x="1354" y="260">Episode Audio</text>
-  <text class="small" x="1354" y="278">final MP3 / WAV</text>
+  <rect x="1338" y="230" width="210" height="52" rx="10" fill="url(#cardMint)"/>
+  <text class="badge" x="1354" y="252">Episode Audio</text>
+  <text class="small" x="1354" y="270" style="fill:#E8FFFB">final MP3 / WAV</text>
 
-  <rect x="1338" y="300" width="210" height="52" rx="10" fill="url(#cardOrange)"/>
-  <text class="badge" x="1354" y="322">RSS Feed</text>
-  <text class="small" x="1354" y="340">ENABLE_RSS_PUBLISHING</text>
+  <rect x="1338" y="292" width="210" height="52" rx="10" fill="url(#cardMint)"/>
+  <text class="badge" x="1354" y="314">RSS Feed</text>
+  <text class="small" x="1354" y="332" style="fill:#E8FFFB">ENABLE_RSS_PUBLISHING</text>
 
-  <rect x="1338" y="362" width="210" height="52" rx="10" fill="url(#cardOrange)"/>
-  <text class="badge" x="1354" y="384">YouTube (optional)</text>
-  <text class="small" x="1354" y="402">adapter + OAuth</text>
+  <rect x="1338" y="354" width="210" height="52" rx="10" fill="url(#cardMint)"/>
+  <text class="badge" x="1354" y="376">YouTube (optional)</text>
+  <text class="small" x="1354" y="394" style="fill:#E8FFFB">adapter + OAuth</text>
 
-  <rect x="1338" y="424" width="210" height="52" rx="10" fill="url(#cardOrange)"/>
-  <text class="badge" x="1354" y="446">Supabase Shelf</text>
-  <text class="small" x="1354" y="464">listener frontend</text>
+  <rect x="1338" y="416" width="210" height="52" rx="10" fill="url(#cardMint)"/>
+  <text class="badge" x="1354" y="438">Supabase Shelf</text>
+  <text class="small" x="1354" y="456" style="fill:#E8FFFB">listener frontend</text>
 
-  <rect x="1338" y="486" width="210" height="52" rx="10" fill="url(#cardOrange)"/>
-  <text class="badge" x="1354" y="508">Ops Dashboard</text>
-  <text class="small" x="1354" y="526">/content � /pipeline</text>
+  <rect x="1338" y="478" width="210" height="52" rx="10" fill="url(#cardMint)"/>
+  <text class="badge" x="1354" y="500">Ops Dashboard</text>
+  <text class="small" x="1354" y="518" style="fill:#E8FFFB">/content · /pipeline</text>
 
-  <rect x="1338" y="548" width="210" height="72" rx="10" fill="#0F172A" stroke="#FB923C"/>
-  <text class="h" x="1354" y="574">API Clients</text>
-  <text class="code" x="1354" y="596">/api/v1/*</text>
-  <text class="p" x="1354" y="614">jobs � episodes � health</text>
+  <rect x="1338" y="540" width="210" height="80" rx="10" fill="#0A1524" stroke="#20D0B0"/>
+  <text class="h" x="1354" y="568">API Clients</text>
+  <text class="code" x="1354" y="590" style="fill:#7EF0D8">/api/v1/*</text>
+  <text class="p" x="1354" y="608">jobs · episodes · health</text>
 
   <!-- 2. PIPELINE -->
-  <rect x="302" y="128" width="996" height="360" rx="16" fill="#0F172A" stroke="#334155" stroke-width="1.5" filter="url(#soft)"/>
-  <text class="section" x="322" y="156">2. PODCAST PRODUCTION PIPELINE</text>
+  <rect x="302" y="120" width="996" height="368" rx="16" fill="#0C1828" stroke="#3B9AE8" stroke-width="1.5" filter="url(#soft)"/>
+  <text class="section" x="322" y="148">2. PODCAST PRODUCTION PIPELINE</text>
 
-  <!-- Step cards: 8 steps in 2 rows of 4 -->
-  <!-- Row 1 -->
-  <g transform="translate(322,176)">
+  <g transform="translate(322,168)">
     <rect width="220" height="130" rx="12" fill="url(#cardBlue)" filter="url(#soft)"/>
     <text class="stepNum" x="14" y="28">01</text>
     <text class="stepTitle" x="52" y="28">Fetch &amp; Ingest</text>
-    <text class="code" x="14" y="52">import_news � RSSProvider</text>
-    <text class="small" x="14" y="76">" Parse RSS / newsletter</text>
-    <text class="small" x="14" y="94">" Dedupe &amp; store Article</text>
-    <text class="small" x="14" y="112">" Tag source metadata</text>
+    <text class="code" x="14" y="52" style="fill:#D6EEFC">import_news · RSSProvider</text>
+    <text class="small" x="14" y="76">• Parse RSS / newsletter</text>
+    <text class="small" x="14" y="94">• Dedupe &amp; store Article</text>
+    <text class="small" x="14" y="112">• Tag source metadata</text>
   </g>
-  <g transform="translate(560,176)">
+  <g transform="translate(560,168)">
     <rect width="220" height="130" rx="12" fill="url(#cardBlue)" filter="url(#soft)"/>
     <text class="stepNum" x="14" y="28">02</text>
     <text class="stepTitle" x="52" y="28">Intelligence</text>
-    <text class="code" x="14" y="52">summarize � classify � rank</text>
-    <text class="small" x="14" y="76">" Summary + category</text>
-    <text class="small" x="14" y="94">" Fixed taxonomy tags</text>
-    <text class="small" x="14" y="112">" Importance scoring</text>
+    <text class="code" x="14" y="52" style="fill:#D6EEFC">summarize · classify · rank</text>
+    <text class="small" x="14" y="76">• Summary + category</text>
+    <text class="small" x="14" y="94">• Fixed taxonomy tags</text>
+    <text class="small" x="14" y="112">• Importance scoring</text>
   </g>
-  <g transform="translate(798,176)">
+  <g transform="translate(798,168)">
     <rect width="220" height="130" rx="12" fill="url(#cardBlue)" filter="url(#soft)"/>
     <text class="stepNum" x="14" y="28">03</text>
     <text class="stepTitle" x="52" y="28">Episode Plan</text>
-    <text class="code" x="14" y="52">episode_planning</text>
-    <text class="small" x="14" y="76">" Create Episode</text>
-    <text class="small" x="14" y="94">" Link ranked articles</text>
-    <text class="small" x="14" y="112">" Select script sources</text>
+    <text class="code" x="14" y="52" style="fill:#D6EEFC">episode_planning</text>
+    <text class="small" x="14" y="76">• Create Episode</text>
+    <text class="small" x="14" y="94">• Link ranked articles</text>
+    <text class="small" x="14" y="112">• Select script sources</text>
   </g>
-  <g transform="translate(1036,176)">
+  <g transform="translate(1036,168)">
     <rect width="220" height="130" rx="12" fill="url(#cardBlue)" filter="url(#soft)"/>
     <text class="stepNum" x="14" y="28">04</text>
     <text class="stepTitle" x="52" y="28">Script LLM</text>
-    <text class="code" x="14" y="52">ScriptGenerationService</text>
-    <text class="small" x="14" y="76">" Brief � outline � dialogue</text>
-    <text class="small" x="14" y="94">" Critic / rewrite loop</text>
-    <text class="small" x="14" y="112">" Coherence pass (manual)</text>
+    <text class="code" x="14" y="52" style="fill:#D6EEFC">ScriptGenerationService</text>
+    <text class="small" x="14" y="76">• Brief → outline → dialogue</text>
+    <text class="small" x="14" y="94">• Critic / rewrite loop</text>
+    <text class="small" x="14" y="112">• Coherence pass (manual)</text>
   </g>
 
-  <!-- arrows row1 -->
-  <path d="M542 241 H552" stroke="#93C5FD" stroke-width="2" marker-end="url(#arrow)"/>
-  <path d="M780 241 H790" stroke="#93C5FD" stroke-width="2" marker-end="url(#arrow)"/>
-  <path d="M1018 241 H1028" stroke="#93C5FD" stroke-width="2" marker-end="url(#arrow)"/>
+  <path d="M542 233 H552" stroke="#7EC8F5" stroke-width="2" marker-end="url(#arrow)"/>
+  <path d="M780 233 H790" stroke="#7EC8F5" stroke-width="2" marker-end="url(#arrow)"/>
+  <path d="M1018 233 H1028" stroke="#7EC8F5" stroke-width="2" marker-end="url(#arrow)"/>
 
-  <!-- Row 2 -->
-  <g transform="translate(322,330)">
+  <g transform="translate(322,322)">
     <rect width="220" height="130" rx="12" fill="url(#cardTeal)" filter="url(#soft)"/>
-    <text class="stepNum" x="14" y="28">05</text>
+    <text class="stepNum" x="14" y="28" style="fill:#D8FFF8">05</text>
     <text class="stepTitle" x="52" y="28">RAG Assist</text>
-    <text class="code" x="14" y="52">ScriptRagService � pgvector</text>
-    <text class="small" x="14" y="76">" Index article chunks</text>
-    <text class="small" x="14" y="94">" Retrieve if over token budget</text>
-    <text class="small" x="14" y="112">" Inject into chapter prompts</text>
+    <text class="code" x="14" y="52" style="fill:#D8FFF8">ScriptRagService · pgvector</text>
+    <text class="small" x="14" y="76" style="fill:#E8FFFB">• Index article chunks</text>
+    <text class="small" x="14" y="94" style="fill:#E8FFFB">• Retrieve if over token budget</text>
+    <text class="small" x="14" y="112" style="fill:#E8FFFB">• Inject into chapter prompts</text>
   </g>
-  <g transform="translate(560,330)">
+  <g transform="translate(560,322)">
     <rect width="220" height="130" rx="12" fill="url(#cardBlue)" filter="url(#soft)"/>
     <text class="stepNum" x="14" y="28">06</text>
     <text class="stepTitle" x="52" y="28">TTS Audio</text>
-    <text class="code" x="14" y="52">ChatterboxProvider</text>
-    <text class="small" x="14" y="76">" Intro / expert / beginner</text>
-    <text class="small" x="14" y="94">" Per-segment synthesis</text>
-    <text class="small" x="14" y="112">" Voice identity preserved</text>
+    <text class="code" x="14" y="52" style="fill:#D6EEFC">ChatterboxProvider</text>
+    <text class="small" x="14" y="76">• Intro / expert / beginner</text>
+    <text class="small" x="14" y="94">• Per-segment synthesis</text>
+    <text class="small" x="14" y="112">• Voice identity preserved</text>
   </g>
-  <g transform="translate(798,330)">
+  <g transform="translate(798,322)">
     <rect width="220" height="130" rx="12" fill="url(#cardBlue)" filter="url(#soft)"/>
     <text class="stepNum" x="14" y="28">07</text>
     <text class="stepTitle" x="52" y="28">Audio Pipeline</text>
-    <text class="code" x="14" y="52">AudioPipelineService � FFmpeg</text>
-    <text class="small" x="14" y="76">" Concat + silence pads</text>
-    <text class="small" x="14" y="94">" Optional intro/outro/BGM</text>
-    <text class="small" x="14" y="112">" Loudness normalize</text>
+    <text class="code" x="14" y="52" style="fill:#D6EEFC">AudioPipelineService · FFmpeg</text>
+    <text class="small" x="14" y="76">• Concat + silence pads</text>
+    <text class="small" x="14" y="94">• Optional intro/outro/BGM</text>
+    <text class="small" x="14" y="112">• Loudness normalize</text>
   </g>
-  <g transform="translate(1036,330)">
+  <g transform="translate(1036,322)">
     <rect width="220" height="130" rx="12" fill="url(#cardBlue)" filter="url(#soft)"/>
     <text class="stepNum" x="14" y="28">08</text>
     <text class="stepTitle" x="52" y="28">Publish</text>
-    <text class="code" x="14" y="52">PublishService</text>
-    <text class="small" x="14" y="76">" RSS / YouTube adapters</text>
-    <text class="small" x="14" y="94">" Supabase shelf push</text>
-    <text class="small" x="14" y="112">" Taxonomy sync</text>
+    <text class="code" x="14" y="52" style="fill:#D6EEFC">PublishService</text>
+    <text class="small" x="14" y="76">• RSS / YouTube adapters</text>
+    <text class="small" x="14" y="94">• Supabase shelf push</text>
+    <text class="small" x="14" y="112">• Taxonomy sync</text>
   </g>
 
-  <path d="M542 395 H552" stroke="#93C5FD" stroke-width="2" marker-end="url(#arrow)"/>
-  <path d="M780 395 H790" stroke="#93C5FD" stroke-width="2" marker-end="url(#arrow)"/>
-  <path d="M1018 395 H1028" stroke="#93C5FD" stroke-width="2" marker-end="url(#arrow)"/>
-  <!-- wrap from 04 to 05 -->
-  <path d="M1256 241 H1276 V300 H432 V330" fill="none" stroke="#93C5FD" stroke-width="2" marker-end="url(#arrow)"/>
+  <path d="M542 387 H552" stroke="#7EC8F5" stroke-width="2" marker-end="url(#arrow)"/>
+  <path d="M780 387 H790" stroke="#7EC8F5" stroke-width="2" marker-end="url(#arrow)"/>
+  <path d="M1018 387 H1028" stroke="#7EC8F5" stroke-width="2" marker-end="url(#arrow)"/>
+  <path d="M1256 233 H1276 V292 H432 V322" fill="none" stroke="#7EC8F5" stroke-width="2" marker-end="url(#arrow)"/>
 
   <!-- Orchestration -->
-  <rect x="302" y="508" width="996" height="140" rx="16" fill="#111827" stroke="#A78BFA" stroke-width="1.5" filter="url(#soft)"/>
+  <rect x="302" y="508" width="996" height="140" rx="16" fill="#0E1A2B" stroke="#1E3A5F" stroke-width="1.8" filter="url(#soft)"/>
   <text class="section" x="322" y="536">ORCHESTRATION ENGINE</text>
-  <text class="code" x="520" y="536">Celery Beat + Worker � JobService � WorkflowEngine</text>
+  <text class="code" x="540" y="536">Celery Beat + Worker · JobService · WorkflowEngine</text>
 
-  <rect x="322" y="556" width="180" height="68" rx="10" fill="url(#cardPurple)"/>
+  <rect x="322" y="556" width="180" height="68" rx="10" fill="url(#cardNavy)"/>
   <text class="badge" x="338" y="582">Schedule (cron)</text>
-  <text class="small" x="338" y="602">import � plan � audio</text>
+  <text class="small" x="338" y="602">import · plan · audio</text>
 
-  <rect x="518" y="556" width="180" height="68" rx="10" fill="url(#cardPurple)"/>
+  <rect x="518" y="556" width="180" height="68" rx="10" fill="url(#cardNavy)"/>
   <text class="badge" x="534" y="582">Queues</text>
-  <text class="small" x="534" y="602">ingestion / llm / tts&</text>
+  <text class="small" x="534" y="602">ingestion / llm / tts…</text>
 
-  <rect x="714" y="556" width="180" height="68" rx="10" fill="url(#cardPurple)"/>
+  <rect x="714" y="556" width="180" height="68" rx="10" fill="url(#cardNavy)"/>
   <text class="badge" x="730" y="582">Job Lifecycle</text>
-  <text class="small" x="730" y="602">retry � cancel � progress</text>
+  <text class="small" x="730" y="602">retry · cancel · progress</text>
 
-  <rect x="910" y="556" width="180" height="68" rx="10" fill="url(#cardPurple)"/>
+  <rect x="910" y="556" width="180" height="68" rx="10" fill="url(#cardNavy)"/>
   <text class="badge" x="926" y="582">Observability</text>
-  <text class="small" x="926" y="602">logs � metrics � health</text>
+  <text class="small" x="926" y="602">logs · metrics · health</text>
 
-  <rect x="1106" y="556" width="170" height="68" rx="10" fill="url(#cardPurple)"/>
+  <rect x="1106" y="556" width="170" height="68" rx="10" fill="url(#cardNavy)"/>
   <text class="badge" x="1122" y="582">Manual Script</text>
   <text class="small" x="1122" y="602">/content Generate</text>
 
   <!-- 4. TOOLS -->
-  <rect x="32" y="672" width="1536" height="100" rx="16" fill="#0F172A" stroke="#334155" stroke-width="1.5" filter="url(#soft)"/>
+  <rect x="32" y="672" width="1536" height="100" rx="16" fill="#0C1828" stroke="#3B9AE8" stroke-width="1.4" filter="url(#soft)"/>
   <text class="section" x="52" y="700">4. TOOLS &amp; INFRASTRUCTURE</text>
 
-  <g font-family="Segoe UI, Arial, sans-serif" font-size="12" font-weight="700" fill="#F8FAFC">
-    <rect x="52" y="716" width="170" height="36" rx="8" fill="#1E293B" stroke="#64748B"/>
+  <g font-family="Segoe UI, Arial, sans-serif" font-size="12" font-weight="700" fill="#F5FBFF">
+    <rect x="52" y="716" width="170" height="36" rx="8" fill="#152843" stroke="#3B9AE8"/>
     <text x="68" y="739">Ollama (LLM + Embed)</text>
-    <rect x="238" y="716" width="150" height="36" rx="8" fill="#1E293B" stroke="#64748B"/>
+    <rect x="238" y="716" width="150" height="36" rx="8" fill="#152843" stroke="#20D0B0"/>
     <text x="254" y="739">Chatterbox TTS</text>
-    <rect x="404" y="716" width="190" height="36" rx="8" fill="#1E293B" stroke="#64748B"/>
+    <rect x="404" y="716" width="190" height="36" rx="8" fill="#152843" stroke="#3B9AE8"/>
     <text x="420" y="739">PostgreSQL 16 + pgvector</text>
-    <rect x="610" y="716" width="120" height="36" rx="8" fill="#1E293B" stroke="#64748B"/>
+    <rect x="610" y="716" width="120" height="36" rx="8" fill="#152843" stroke="#20D0B0"/>
     <text x="626" y="739">Redis Broker</text>
-    <rect x="746" y="716" width="100" height="36" rx="8" fill="#1E293B" stroke="#64748B"/>
+    <rect x="746" y="716" width="100" height="36" rx="8" fill="#152843" stroke="#3B9AE8"/>
     <text x="762" y="739">Celery</text>
-    <rect x="862" y="716" width="100" height="36" rx="8" fill="#1E293B" stroke="#64748B"/>
+    <rect x="862" y="716" width="100" height="36" rx="8" fill="#152843" stroke="#20D0B0"/>
     <text x="878" y="739">FFmpeg</text>
-    <rect x="978" y="716" width="150" height="36" rx="8" fill="#1E293B" stroke="#64748B"/>
+    <rect x="978" y="716" width="150" height="36" rx="8" fill="#152843" stroke="#3B9AE8"/>
     <text x="994" y="739">Docker Compose</text>
-    <rect x="1144" y="716" width="120" height="36" rx="8" fill="#1E293B" stroke="#64748B"/>
+    <rect x="1144" y="716" width="120" height="36" rx="8" fill="#152843" stroke="#20D0B0"/>
     <text x="1160" y="739">Django 5</text>
-    <rect x="1280" y="716" width="160" height="36" rx="8" fill="#1E293B" stroke="#64748B"/>
+    <rect x="1280" y="716" width="160" height="36" rx="8" fill="#152843" stroke="#3B9AE8"/>
     <text x="1296" y="739">Nginx (staging/prod)</text>
   </g>
 
-  <!-- 5. OVERVIEW + 6. DATA FLOW + LEGEND -->
-  <rect x="32" y="792" width="520" height="176" rx="16" fill="#111827" stroke="#334155" stroke-width="1.5"/>
+  <!-- Footer -->
+  <rect x="32" y="792" width="520" height="176" rx="16" fill="#0E1A2B" stroke="#3B9AE8" stroke-width="1.4"/>
   <text class="section" x="52" y="820">5. SYSTEM OVERVIEW</text>
   <text class="p" x="52" y="848">Cast It turns tech news into multi-voice podcast episodes.</text>
   <text class="p" x="52" y="866">Articles are summarized, ranked, and selected; a multi-stage</text>
   <text class="p" x="52" y="884">LLM pipeline writes grounded dialogue; Chatterbox + FFmpeg</text>
   <text class="p" x="52" y="902">produce final audio; Celery orchestrates retries and schedules.</text>
   <text class="p" x="52" y="928">Script generation is manual from the Operations Dashboard.</text>
-  <text class="code" x="52" y="952">services/ � domain/ � infrastructure/</text>
+  <text class="code" x="52" y="952">services/ · domain/ · infrastructure/</text>
 
-  <rect x="572" y="792" width="640" height="176" rx="16" fill="#111827" stroke="#334155" stroke-width="1.5"/>
+  <rect x="572" y="792" width="640" height="176" rx="16" fill="#0E1A2B" stroke="#20D0B0" stroke-width="1.4"/>
   <text class="section" x="592" y="820">6. DATA FLOW &amp; MEMORY</text>
 
-  <rect x="592" y="844" width="100" height="40" rx="8" fill="#1E3A8A"/>
-  <text class="badge" x="608" y="869" font-size="11">Raw</text>
-  <path d="M700 864 H720" stroke="#93C5FD" stroke-width="2" marker-end="url(#arrow)"/>
-  <rect x="728" y="844" width="100" height="40" rx="8" fill="#1E3A8A"/>
-  <text class="badge" x="744" y="869" font-size="11">Intel</text>
-  <path d="M836 864 H856" stroke="#93C5FD" stroke-width="2" marker-end="url(#arrow)"/>
-  <rect x="864" y="844" width="100" height="40" rx="8" fill="#1E3A8A"/>
-  <text class="badge" x="876" y="869" font-size="11">Episode</text>
-  <path d="M972 864 H992" stroke="#93C5FD" stroke-width="2" marker-end="url(#arrow)"/>
-  <rect x="1000" y="844" width="90" height="40" rx="8" fill="#1E3A8A"/>
-  <text class="badge" x="1016" y="869" font-size="11">Script</text>
-  <path d="M1098 864 H1118" stroke="#93C5FD" stroke-width="2" marker-end="url(#arrow)"/>
-  <rect x="1126" y="844" width="60" height="40" rx="8" fill="#C2410C"/>
-  <text class="badge" x="1136" y="869" font-size="11">Out</text>
+  <rect x="592" y="844" width="100" height="40" rx="8" fill="#1A6BB8"/>
+  <text class="badge" x="618" y="869">Raw</text>
+  <path d="M700 864 H720" stroke="#7EC8F5" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="728" y="844" width="100" height="40" rx="8" fill="#1A6BB8"/>
+  <text class="badge" x="752" y="869">Intel</text>
+  <path d="M836 864 H856" stroke="#7EC8F5" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="864" y="844" width="100" height="40" rx="8" fill="#1A6BB8"/>
+  <text class="badge" x="880" y="869">Episode</text>
+  <path d="M972 864 H992" stroke="#7EC8F5" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="1000" y="844" width="90" height="40" rx="8" fill="#1A6BB8"/>
+  <text class="badge" x="1018" y="869">Script</text>
+  <path d="M1098 864 H1118" stroke="#7EC8F5" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="1126" y="844" width="60" height="40" rx="8" fill="#149E8C"/>
+  <text class="badge" x="1138" y="869">Out</text>
 
-  <rect x="592" y="908" width="200" height="40" rx="8" fill="#115E59"/>
+  <rect x="592" y="908" width="200" height="40" rx="8" fill="#0F9A88"/>
   <text class="badge" x="608" y="933">pgvector RAG memory</text>
-  <path d="M700 908 V884" fill="none" stroke="#34D399" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#arrowGreen)"/>
+  <path d="M700 908 V884" fill="none" stroke="#20D0B0" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#arrowTeal)"/>
 
-  <text class="muted" x="820" y="934">Feedback: retry sweep � provider health � pipeline monitor</text>
-  <path d="M1186 864 C1220 864 1220 940 900 940" fill="none" stroke="#34D399" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#arrowGreen)"/>
+  <text class="muted" x="820" y="934">Feedback: retry sweep · provider health · pipeline monitor</text>
+  <path d="M1186 864 C1220 864 1220 940 900 940" fill="none" stroke="#20D0B0" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#arrowTeal)"/>
 
-  <rect x="1232" y="792" width="336" height="176" rx="16" fill="#111827" stroke="#334155" stroke-width="1.5"/>
+  <rect x="1232" y="792" width="336" height="176" rx="16" fill="#0E1A2B" stroke="#7EC8F5" stroke-width="1.4"/>
   <text class="section" x="1252" y="820">LEGEND</text>
-  <rect x="1252" y="840" width="18" height="18" rx="4" fill="#1D4ED8"/>
-  <text class="legend" x="1280" y="854">Processing step</text>
-  <rect x="1252" y="870" width="18" height="18" rx="4" fill="#6D28D9"/>
-  <text class="legend" x="1280" y="884">Orchestration</text>
-  <rect x="1252" y="900" width="18" height="18" rx="4" fill="#C2410C"/>
-  <text class="legend" x="1280" y="914">Output</text>
-  <rect x="1252" y="930" width="18" height="18" rx="4" fill="#0F766E"/>
-  <text class="legend" x="1280" y="944">Memory / RAG</text>
+  <rect x="1252" y="840" width="18" height="18" rx="4" fill="#3B9AE8"/>
+  <text class="legend" x="1280" y="854">Processing step (logo blue)</text>
+  <rect x="1252" y="870" width="18" height="18" rx="4" fill="#1E3A5F"/>
+  <text class="legend" x="1280" y="884">Orchestration (navy headset)</text>
+  <rect x="1252" y="900" width="18" height="18" rx="4" fill="#20D0B0"/>
+  <text class="legend" x="1280" y="914">Output / memory (logo mint)</text>
+  <rect x="1252" y="930" width="18" height="18" rx="4" fill="#7EC8F5"/>
+  <text class="legend" x="1280" y="944">Accent / data flow</text>
 </svg>

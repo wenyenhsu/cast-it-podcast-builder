@@ -9,7 +9,9 @@ Cast It is a Django-based AI podcast production platform for news ingestion, art
 
 ## Architecture and Features
 
-![Cast It System Architecture](docs/architecture/diagrams/09-cast-it-system-architecture.svg)
+![Cast It System Architecture](docs/architecture/diagrams/09-cast-it-system-architecture.png)
+
+Editable vector source: [`09-cast-it-system-architecture.svg`](docs/architecture/diagrams/09-cast-it-system-architecture.svg)
 
 ![system context](docs/architecture/diagrams/01-system-context.png)
 
