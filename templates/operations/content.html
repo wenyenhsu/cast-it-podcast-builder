@@ -70,12 +70,6 @@
       <div class="h4 fw-bold mb-0">{{ article_totals.selected_for_script }}</div>
     </div>
   </div>
-  <div class="col-6 col-md-3">
-    <div class="card p-3 h-100">
-      <div class="stat-label text-secondary">Live Articles</div>
-      <div class="h4 fw-bold mb-0">{{ article_totals.live_articles }}</div>
-    </div>
-  </div>
 </div>
 
 <div class="card p-4 mb-4">
@@ -122,11 +116,25 @@
     </div>
   </div>
 
-  <div class="d-flex flex-wrap gap-2 align-items-center">
+  <div class="generation-action-bar d-flex flex-nowrap align-items-center gap-2 overflow-x-auto pb-1">
     {% if script_workspace.active_script_job_id %}
-    <button type="button" class="btn btn-secondary" disabled aria-disabled="true">
-      <i class="bi bi-hourglass-split me-1"></i>Generating...
+    <button type="button" class="btn btn-secondary generation-primary-button" disabled aria-disabled="true">
+      <i class="bi bi-hourglass-split me-1"></i>Generating Scripts...
     </button>
+    {% else %}
+    <button
+      type="button"
+      id="generate-script-btn"
+      class="btn btn-primary generation-primary-button"
+      data-bs-toggle="modal"
+      data-bs-target="#generateScriptModal"
+      {% if not script_workspace.can_generate %}disabled{% endif %}
+    >
+      <i class="bi bi-magic me-1"></i>Generate Scripts
+    </button>
+    {% endif %}
+
+    {% if script_workspace.active_script_job_id %}
     {% if script_workspace.can_abort_script %}
     <form method="post" class="d-inline" data-script-abort-form>
       {% csrf_token %}
@@ -143,39 +151,20 @@
     {% else %}
     <span class="text-secondary small">Running — try Abort if this stays stuck.</span>
     {% endif %}
-    {% else %}
-    <button
-      type="button"
-      id="generate-script-btn"
-      class="btn btn-primary"
-      data-bs-toggle="modal"
-      data-bs-target="#generateScriptModal"
-      {% if not script_workspace.can_generate %}disabled{% endif %}
-    >
-      <i class="bi bi-magic me-1"></i>Generate Script
-    </button>
     {% endif %}
     <a
-      class="btn btn-outline-secondary"
+      class="btn btn-outline-secondary flex-shrink-0"
       href="{% url 'operations:content' %}?view=scripts{% if script_workspace.episode_id %}&amp;episode={{ script_workspace.episode_id }}{% endif %}"
     >
       <i class="bi bi-pencil-square me-1"></i>Manual Script
     </a>
     {% if script_workspace.episode_id %}
     <a
-      class="btn btn-outline-secondary"
+      class="btn btn-outline-secondary flex-shrink-0"
       href="{% url 'operations:episode_pipeline' script_workspace.episode_id %}"
     >
       <i class="bi bi-diagram-3 me-1"></i>View Pipeline
     </a>
-    {% if script_workspace.can_open_tts %}
-    <a
-      class="btn btn-outline-primary"
-      href="{% url 'operations:tts_generation' %}"
-    >
-      <i class="bi bi-soundwave me-1"></i>TTS Generation
-    </a>
-    {% endif %}
     {% endif %}
     {% if script_workspace.active_script_job_id %}
     {% elif script_workspace.selected_for_script == 0 %}
@@ -183,13 +172,14 @@
     {% endif %}
   </div>
 
+  {% if script_workspace.active_script_job_id %}
   <div
     id="script-generation-progress"
     class="ops-inline-job-progress-wrapper"
     data-inline-job="{{ script_workspace.active_script_job_id }}"
     data-inline-job-label="Script Generation"
-    {% if not script_workspace.active_script_job_id %}hidden{% endif %}
   ></div>
+  {% endif %}
 </div>
 
 <div class="modal fade" id="generateScriptModal" tabindex="-1" aria-labelledby="generateScriptModalLabel" aria-hidden="true">

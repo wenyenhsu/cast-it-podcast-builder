@@ -102,9 +102,11 @@ def test_pipeline_as_dicts(news_source) -> None:
     )
     panel = EpisodePipelineService().build_panel(episode)
     stage_dicts = panel["stages"]
-    assert len(stage_dicts) == 7
+    assert len(stage_dicts) == 5
+    assert all(stage["name"] != "Publishing" for stage in stage_dicts)
+    assert all(stage["name"] != "Audio" for stage in stage_dicts)
     assert "name" in stage_dicts[0]
     assert "display_status" in stage_dicts[0]
     assert "description" in stage_dicts[0]
     assert panel["overview"]["progress_percent"] >= 0
-    assert len(panel["overview"]["metrics"]) == 5
+    assert len(panel["overview"]["metrics"]) == 4

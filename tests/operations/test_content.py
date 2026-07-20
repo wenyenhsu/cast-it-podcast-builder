@@ -30,12 +30,17 @@ def test_content_page_renders_unified_table(admin_client, news_source: NewsSourc
     content = response.content.decode()
     assert "Articles" in content
     assert "Script Generation" in content
+    assert 'class="row g-3 mb-4"' in content
+    assert "generation-action-bar d-flex flex-nowrap" in content
     assert "Manual Script" in content
     assert "RSS Story" in content
     assert "generateScriptModal" in content
     assert 'id="generate-script-btn"' in content
+    assert 'id="generation-mode"' not in content
+    assert "Generate Scripts" in content
+    assert "Generate Audio" not in content
     assert 'name="episode_title"' in content
-    assert "Live Articles" in content
+    assert "Live Articles" not in content
     assert "Live in 1 episode" in content
 
 
@@ -373,4 +378,4 @@ def test_content_library_service_counts() -> None:
     totals = ContentLibraryService().article_totals()
     assert "total_articles" in totals
     assert "selected_for_script" in totals
-    assert "live_articles" in totals
+    assert "live_articles" not in totals

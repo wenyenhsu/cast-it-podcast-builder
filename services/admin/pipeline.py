@@ -4,9 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from apps.audio.models import AudioAsset, AudioAssetStatus, PipelineRun
 from apps.episodes.models import Episode
-from apps.publish.models import PublishJob
 from apps.scheduler.models import Job, JobStatus
 
 SUCCESS_STATUSES = frozenset(
@@ -50,8 +48,6 @@ STAGE_DESCRIPTIONS = {
     "Classification": "Articles categorized for editorial ranking.",
     "Ranking": "Articles scored by importance for script selection.",
     "Script": "Podcast dialogue script generated from selected sources.",
-    "Audio": "TTS audio synthesized from the approved script.",
-    "Publishing": "Episode distributed to configured platforms.",
 }
 
 
@@ -80,8 +76,6 @@ class EpisodePipelineService:
         "Classification",
         "Ranking",
         "Script",
-        "Audio",
-        "Publishing",
     )
 
     def build_pipeline(self, episode: Episode) -> list[PipelineStage]:
@@ -107,12 +101,7 @@ class EpisodePipelineService:
             for job in article_jobs
             if job.id not in {item.id for item in episode_jobs}
         ]
-        articles_count = len(articles)
         latest_script = episode.scripts.order_by("-version").first()
-        audio_assets = list(episode.audio_assets.all())
-        publish_jobs = list(episode.publish_jobs.all())
-        pipeline_runs = list(episode.pipeline_runs.all())
-
         return [
             self._news_collection_stage(episode, articles, jobs),
             self._article_processing_stage(
@@ -145,8 +134,6 @@ class EpisodePipelineService:
             ),
             self._ranking_stage(episode, jobs, articles),
             self._script_stage(latest_script, jobs),
-            self._audio_stage(audio_assets, pipeline_runs, jobs),
-            self._publishing_stage(publish_jobs, jobs),
         ]
 
     def build_panel(self, episode: Episode) -> dict[str, Any]:
@@ -191,9 +178,6 @@ class EpisodePipelineService:
                 finished_at = max(stage_finishes)
 
         articles = episode.articles.all()
-        audio_ready = episode.audio_assets.filter(status=AudioAssetStatus.READY).count()
-        script_ready = episode.scripts.filter(status__in=["ready", "approved"]).count()
-
         return {
             "run_id": str(episode.id)[:8],
             "overall_status": overall_status,
@@ -214,7 +198,6 @@ class EpisodePipelineService:
                     "label": "Ranked",
                     "value": articles.filter(importance_score__isnull=False).count(),
                 },
-                {"label": "Audio ready", "value": audio_ready or script_ready},
             ],
         }
 
@@ -312,58 +295,6 @@ class EpisodePipelineService:
             status=status,
             job=job,
             items_count=items,
-        )
-
-    def _audio_stage(
-        self,
-        assets: list[AudioAsset],
-        pipeline_runs: list[PipelineRun],
-        jobs: list[Job],
-    ) -> PipelineStage:
-        audio_jobs = [j for j in jobs if j.job_type == "generate_audio"]
-        pipeline_jobs = [j for j in jobs if j.job_type == "run_audio_pipeline"]
-        relevant_jobs = pipeline_jobs or audio_jobs
-        job = relevant_jobs[-1] if relevant_jobs else None
-        ready = sum(1 for asset in assets if asset.status == AudioAssetStatus.READY)
-        run = pipeline_runs[-1] if pipeline_runs else None
-        status = run.status if run else ("completed" if ready else "pending")
-        if job:
-            status = job.status
-        return self._make_stage(
-            name="Audio",
-            status=status,
-            job=job,
-            items_count=ready or len(assets) or None,
-            started_at=run.started_at if run else None,
-            finished_at=run.completed_at if run else None,
-        )
-
-    def _publishing_stage(
-        self,
-        publish_jobs: list[PublishJob],
-        jobs: list[Job],
-    ) -> PipelineStage:
-        pub_jobs = [j for j in jobs if j.job_type == "publish_episode"]
-        job = pub_jobs[-1] if pub_jobs else None
-        latest = publish_jobs[-1] if publish_jobs else None
-        status = latest.status if latest else (job.status if job else "pending")
-        started_at = latest.started_at if latest else None
-        if started_at is None and job is not None:
-            started_at = job.started_at
-        finished_at = latest.completed_at if latest else None
-        if finished_at is None and job is not None:
-            finished_at = job.completed_at
-        error = latest.error_message if latest else ""
-        if not error and job is not None:
-            error = job.error_message
-        return self._make_stage(
-            name="Publishing",
-            status=status,
-            job=job,
-            started_at=started_at,
-            finished_at=finished_at,
-            error=error,
-            items_count=len(publish_jobs) or None,
         )
 
     def _make_stage(

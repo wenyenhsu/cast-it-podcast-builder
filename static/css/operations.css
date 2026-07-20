@@ -337,6 +337,38 @@ body {
   box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.12);
 }
 
+.generation-action-bar {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.65rem;
+  overflow-x: auto;
+  padding: 0.2rem 0 0.35rem;
+}
+
+.generation-primary-button {
+  flex: 0 0 auto;
+  min-height: 3rem;
+  min-width: 11.5rem;
+  padding-inline: 1.1rem;
+  font-weight: 600;
+}
+
+.generation-primary-button.btn-primary:not(:disabled) {
+  box-shadow: 0 0.35rem 0.8rem rgba(13, 110, 253, 0.2);
+}
+
+.generation-primary-button.btn-primary:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0.5rem 1rem rgba(13, 110, 253, 0.25);
+}
+
+.generation-action-bar > .btn,
+.generation-action-bar > form,
+.generation-action-bar > span {
+  flex: 0 0 auto;
+}
+
 .empty-state {
   padding: 2rem;
   text-align: center;

@@ -5,10 +5,10 @@ from unittest.mock import patch
 import pytest
 from django.urls import reverse
 
+from apps.audio.models import AudioAsset, AudioAssetStatus
 from apps.episodes.models import Episode, EpisodeStatus
 from apps.scheduler.models import Job, JobType
 from apps.scripts.models import Script, ScriptSegment, ScriptStatus, Speaker
-from apps.audio.models import AudioAsset, AudioAssetStatus
 from services.admin.dispatch import AdminJobDispatchService
 
 
@@ -74,11 +74,13 @@ def test_enqueue_coerces_uuid_payload_values() -> None:
         "api.v1.services.job_dispatch.get_task_for_job_type",
         return_value=task,
     ):
+        episode_id = str(uuid.uuid4())
         job = AdminJobDispatchService().generate_audio(
-            str(uuid.uuid4()),
+            episode_id,
             script_id=str(script_id),
         )
 
+    assert job.payload["episode_id"] == episode_id
     assert job.payload["script_id"] == str(script_id)
 
 
@@ -117,7 +119,7 @@ def test_script_detail_generate_audio_action(admin_client) -> None:
 
 
 @pytest.mark.django_db
-def test_content_shows_tts_generation_link_when_script_ready(admin_client) -> None:
+def test_content_keeps_tts_generation_outside_script_workspace(admin_client) -> None:
     episode = Episode.objects.create(title="Audio Episode", status=EpisodeStatus.DRAFT)
     Script.objects.create(
         episode=episode,
@@ -127,8 +129,9 @@ def test_content_shows_tts_generation_link_when_script_ready(admin_client) -> No
     )
     response = admin_client.get(reverse("operations:content"))
     content = response.content.decode()
-    assert "TTS Generation" in content
-    assert reverse("operations:tts_generation") in content
+    assert 'id="generation-mode"' not in content
+    assert "Generate Scripts" in content
+    assert "Generate Audio" not in content
 
 
 @pytest.mark.django_db

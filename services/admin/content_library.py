@@ -42,9 +42,6 @@ class ContentLibraryService:
             "selected_for_script": Article.objects.filter(
                 selected_for_script=True
             ).count(),
-            "live_articles": Article.objects.filter(episodes__publish=1)
-            .distinct()
-            .count(),
         }
 
     def list_articles(

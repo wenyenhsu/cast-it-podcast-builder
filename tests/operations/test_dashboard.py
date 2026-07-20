@@ -231,7 +231,8 @@ def test_episode_pipeline_view(admin_client, news_source: NewsSource) -> None:
     assert response.status_code == 200
     content = response.content.decode()
     assert "News Collection" in content
-    assert "Publishing" in content
+    assert "Publishing" not in content
+    assert "Audio ready" not in content
     assert "pipeline-panel" in content
     assert "Items:" in content
 

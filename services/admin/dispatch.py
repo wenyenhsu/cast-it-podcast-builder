@@ -72,11 +72,9 @@ class AdminJobDispatchService:
         script_id: str | None = None,
         audio_asset_id: str | None = None,
     ) -> Job:
-        payload: dict[str, str] = {}
+        payload: dict[str, str] = {"episode_id": episode_id}
         if script_id:
             payload["script_id"] = script_id
-        else:
-            payload["episode_id"] = episode_id
         if audio_asset_id:
             payload["audio_asset_id"] = audio_asset_id
         return self.enqueue(JobType.GENERATE_AUDIO, payload)
