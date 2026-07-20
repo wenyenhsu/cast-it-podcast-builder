@@ -1,6 +1,6 @@
 # Cast It — AI Podcast Generator
 
-![Cast It](img/logo.png)
+![Cast It](img/logo-dark.png)
 
 Cast It is a Django-based AI podcast production platform for news ingestion, article intelligence, multi-stage LLM script generation, TTS audio synthesis, FFmpeg post-processing, and multi-channel publishing (RSS / YouTube / Supabase).
 
@@ -8,14 +8,6 @@ Cast It is a Django-based AI podcast production platform for news ingestion, art
 ---
 
 ## Architecture and Features
-
-![Cast It System Architecture](docs/architecture/diagrams/09-cast-it-system-architecture.png)
-
-Editable vector source: [`09-cast-it-system-architecture.svg`](docs/architecture/diagrams/09-cast-it-system-architecture.svg)
-
-![system context](docs/architecture/diagrams/01-system-context.png)
-
-![layered architecture](docs/architecture/diagrams/02-layered-architecture.png)
 
 ### Tech Stack
 
@@ -31,18 +23,15 @@ Editable vector source: [`09-cast-it-system-architecture.svg`](docs/architecture
 - Operations Dashboard
   - Monitors pipeline health, content sources, scripts, and per-episode stage progress.
   - Separate from Django Admin; shared staff login at `/accounts/login/`.
-![content pipeline](docs/architecture/diagrams/03-content-pipeline.png)
 
 - News Ingestion & Article Intelligence
   - Imports articles from RSS / newsletter providers.
   - Summarizes, classifies, tags (fixed taxonomy), ranks, and selects script sources.
-![django apps](docs/architecture/diagrams/05-django-apps.png)
 
 - Multi-Stage Script Generation (LLM)
   - Manual Generate Script from `/content/` (not Celery Beat).
   - Pipeline: story brief → episode outline → chapter dialogue → critic/rewrite → coherence.
   - Optional article RAG via pgvector when source text exceeds the token budget.
-![RAG path](docs/architecture/diagrams/08-rag-path.png)
 
 - Audio Generation & Pipeline
   - Chatterbox TTS with intro / expert / beginner voice roles.
@@ -55,7 +44,6 @@ Editable vector source: [`09-cast-it-system-architecture.svg`](docs/architecture
 - Jobs, Workflow & Observability
   - Trackable Celery jobs with retry / cancel.
   - Structured JSON logs, metrics, tracing, health probes.
-![async jobs](docs/architecture/diagrams/04-async-jobs.png)
 
 ### Project Structure
 
@@ -90,8 +78,7 @@ cast-it-podcast-builder/
 └── manage.py
 ```
 
-Deployment details: [docs/deployment.md](docs/deployment.md).  
-Architecture diagrams: [docs/architecture/diagrams/](docs/architecture/diagrams/).
+Deployment details: [docs/deployment.md](docs/deployment.md).
 
 
 ## Table of Instructions
@@ -515,8 +502,6 @@ Compose files:
 | `docker-compose.host-access.yml` | Optional host ports for db / redis |
 | `docker-compose.staging.yml` | Staging (Gunicorn + Nginx) |
 | `docker-compose.prod.yml` | Production |
-
-![docker deployment](docs/architecture/diagrams/07-docker-deployment.png)
 
 ---
 
