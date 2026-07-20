@@ -39,8 +39,10 @@ src/db.sqlite3
 db-schema.md
 .drawio.bkp
 
-# Local compose overrides
+# Local compose overrides / deploy secrets
 docker-compose.override.yml
+docker/deploy/.env.staging
+docker/deploy/.env.production
 
 launch.json
 episode_*.mp3

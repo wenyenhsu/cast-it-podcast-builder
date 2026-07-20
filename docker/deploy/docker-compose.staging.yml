@@ -1,5 +1,7 @@
-# Staging stack — production-like image with Gunicorn and optional Nginx
-# Usage: docker compose -f docker-compose.staging.yml --env-file .env.staging up --build
+# Staging stack — production-like image with Gunicorn + Nginx
+# Run from repo root:
+#   cp docker/deploy/.env.staging.example docker/deploy/.env.staging
+#   docker compose -f docker/deploy/docker-compose.staging.yml --env-file docker/deploy/.env.staging up --build -d
 
 services:
   db:
@@ -26,7 +28,7 @@ services:
 
   web:
     build:
-      context: .
+      context: ../..
       dockerfile: docker/Dockerfile
       target: production
       args:
@@ -66,7 +68,7 @@ services:
 
   celery-worker:
     build:
-      context: .
+      context: ../..
       dockerfile: docker/Dockerfile
       target: production
     command: celery-worker
@@ -98,7 +100,7 @@ services:
 
   celery-beat:
     build:
-      context: .
+      context: ../..
       dockerfile: docker/Dockerfile
       target: production
     command: celery-beat
@@ -120,8 +122,8 @@ services:
     ports:
       - "${NGINX_PORT:-8080}:80"
     volumes:
-      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ../nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ../nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
       - static_staging:/var/www/static:ro
       - media_staging:/var/www/media:ro
     depends_on:

@@ -5,8 +5,8 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${ROOT_DIR}"
 
-COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
-ENV_FILE="${ENV_FILE:-.env.production}"
+COMPOSE_FILE="${COMPOSE_FILE:-docker/deploy/docker-compose.prod.yml}"
+ENV_FILE="${ENV_FILE:-docker/deploy/.env.production}"
 BACKUP_DIR="${BACKUP_DIR:-./backups/postgres}"
 TIMESTAMP="$(date -u +"%Y%m%dT%H%M%SZ")"
 BACKUP_FILE="${BACKUP_DIR}/cast_it_${TIMESTAMP}.sql.gz"

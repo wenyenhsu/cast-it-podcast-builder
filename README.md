@@ -498,10 +498,9 @@ Compose files:
 
 | File | Purpose |
 |------|---------|
-| `docker-compose.yml` | Local development |
+| `docker-compose.yml` | Local development (default) |
 | `docker-compose.host-access.yml` | Optional host ports for db / redis |
-| `docker-compose.staging.yml` | Staging (Gunicorn + Nginx) |
-| `docker-compose.prod.yml` | Production |
+| `docker/deploy/` | Staging / production stacks (see `docker/deploy/README.md`) |
 
 ---
 

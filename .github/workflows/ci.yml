@@ -139,5 +139,5 @@ jobs:
       - name: Post-build verification checklist
         run: |
           echo "Release image built: cast-it:release-${{ github.run_number }}"
-          echo "Deploy with: docker compose -f docker-compose.prod.yml up -d"
+          echo "Deploy with: docker compose -f docker/deploy/docker-compose.prod.yml --env-file docker/deploy/.env.production up -d"
           echo "Rollback by redeploying the previous IMAGE_TAG."
