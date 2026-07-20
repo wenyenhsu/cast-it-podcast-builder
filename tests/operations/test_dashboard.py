@@ -37,6 +37,9 @@ def test_operations_dashboard_renders(admin_client) -> None:
     content = response.content.decode()
     assert "Dashboard" in content
     assert "Total Articles" in content
+    assert 'src="/static/img/logo.png"' in content
+    assert 'width="44"' in content
+    assert 'height="44"' in content
     assert "Model administration" not in content
 
 

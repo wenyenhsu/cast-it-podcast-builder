@@ -13,7 +13,16 @@
   <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top shadow-sm">
     <div class="container">
       <a class="navbar-brand d-flex align-items-center gap-3 fw-bold" href="{% url 'operations:dashboard' %}">
-        <span class="cast-brand-icon" aria-hidden="true"><i class="bi bi-broadcast-pin"></i></span>
+        <span class="cast-brand-icon" aria-hidden="true">
+          <img
+            class="cast-brand-logo"
+            src="{% static 'img/logo.png' %}"
+            alt=""
+            width="44"
+            height="44"
+            style="display:block;width:2.75rem;height:2.75rem;object-fit:cover;border-radius:50%"
+          >
+        </span>
         <span class="d-flex flex-column lh-1">
           <span class="fs-5 fw-bold">Cast It</span>
           <small class="text-secondary">Podcast Pipeline</small>
