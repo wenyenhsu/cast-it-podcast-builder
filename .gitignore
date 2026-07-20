@@ -4,6 +4,7 @@ __pycache__/
 .venv/
 staticfiles/
 /media/
+/feeds/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
@@ -30,7 +31,13 @@ docs/
 AI4SE-TeamInformation*.xlsx
 Chatterbox-TTS-Server/
 
-# Local DB / logs
+# Accidental / generated media
+/-version
+*.wav
+*.mp3
+episode_*.mp3
+
+# Local DB / logs / backups
 db.sqlite3
 src/db.sqlite3
 *.log
@@ -38,6 +45,9 @@ src/db.sqlite3
 *.mmd
 db-schema.md
 .drawio.bkp
+backups/**/*.sql
+backups/**/*.sql.gz
+!backups/**/.gitkeep
 
 # Local compose overrides / deploy secrets
 docker-compose.override.yml
@@ -45,4 +55,3 @@ docker/deploy/.env.staging
 docker/deploy/.env.production
 
 launch.json
-episode_*.mp3
