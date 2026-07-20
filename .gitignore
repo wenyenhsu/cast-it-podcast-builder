@@ -5,7 +5,10 @@ __pycache__/
 staticfiles/
 /media/
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
 .coverage
+htmlcov/
 celerybeat-schedule*
 
 # IDE / OS
@@ -14,6 +17,18 @@ celerybeat-schedule*
 .vscode/
 .DS_Store
 Thumbs.db
+**/~$*.docx
+**/~$*.pptx
+**/~$*.xlsx
+
+# Local docs / internal materials (keep local only — do not push)
+docs/
+
+# Local / team artifacts that should not be in the public repo
+*.pptx
+*.docx
+AI4SE-TeamInformation*.xlsx
+Chatterbox-TTS-Server/
 
 # Local DB / logs
 db.sqlite3
@@ -26,7 +41,6 @@ db-schema.md
 
 # Local compose overrides
 docker-compose.override.yml
-
 
 launch.json
 episode_*.mp3

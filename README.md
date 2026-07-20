@@ -9,7 +9,7 @@ Cast It is a Django-based AI podcast production platform for news ingestion, art
 
 ## Architecture and Features
 
-![Cast It System Architecture](docs/architecture/diagrams/09-cast-it-system-architecture.png)
+![Cast It System Architecture](img/cast-it-system-architecture.png)
 
 ### Tech Stack
 
@@ -70,17 +70,15 @@ cast-it-podcast-builder/
 ├── templates/prompts/      # LLM prompt templates
 ├── docker/                 # Dockerfile, entrypoint, Nginx, Gunicorn
 ├── scripts/                # start/stop, admin, auth helpers
-├── docs/                   # Architecture diagrams, deployment notes
 ├── supabase/               # Listener DB migrations
 ├── tests/
+├── img/                    # Brand assets / architecture diagram
 ├── docker-compose.yml
 ├── requirements/
 │   ├── base.txt
 │   └── dev.txt
 └── manage.py
 ```
-
-Deployment details: [docs/deployment.md](docs/deployment.md).
 
 
 ## Table of Instructions
