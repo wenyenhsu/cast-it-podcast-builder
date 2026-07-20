@@ -1,484 +1,748 @@
 # Cast It — AI Podcast Generator
 
-Production-ready Django platform that automates the full podcast production pipeline: news ingestion, article intelligence, episode planning, script generation, audio synthesis, post-processing, and publishing.
+![Cast It](img/logo.png)
 
-Built with clean architecture — business logic stays in `services/`, orchestration in dedicated layers, and Django models/views remain thin.
+Cast It is a Django-based AI podcast production platform for news ingestion, article intelligence, multi-stage LLM script generation, TTS audio synthesis, FFmpeg post-processing, and multi-channel publishing (RSS / YouTube / Supabase).
 
----
-
-## Features
-
-| Area | Capabilities |
-|------|-------------|
-| **Ingestion** | RSS/news source import, article storage, tagging |
-| **Intelligence** | Summarization, classification, clustering, ranking |
-| **Episode Planning** | Automated episode creation from ranked articles |
-| **Script Generation** | LLM-powered multi-segment scripts with validation |
-| **Audio** | TTS (Chatterbox), voice profiles, FFmpeg pipeline |
-| **Publishing** | RSS feed generation, YouTube adapter |
-| **Jobs & Scheduling** | Celery tasks, beat schedules, retry sweep |
-| **Knowledge Base (RAG)** | pgvector embeddings, chunking, retrieval |
-| **Workflow Engine** | Versioned pipelines — trackable, retryable, resumable, cancelable |
-| **Observability** | Structured JSON logging, metrics, tracing, health probes |
-| **Operations** | Standalone dashboard for pipeline monitoring (separate from Django Admin) |
-| **Deployment** | Multi-stage Docker images, staging/prod Compose, CI/CD |
 
 ---
 
-## Tech Stack
+## Architecture and Features
 
-| Layer | Technology |
-|-------|------------|
-| Runtime | Python 3.13+, Django 5+, Django REST Framework |
-| Data | PostgreSQL 16 + pgvector, Redis |
-| Tasks | Celery, Celery Beat (`django_celery_beat`) |
-| AI / Media | Ollama (LLM + embeddings), Chatterbox (TTS), FFmpeg |
-| Quality | pytest, ruff, black, mypy |
-| Deploy | Docker, Docker Compose, Gunicorn, Nginx, GitHub Actions |
+![system context](docs/architecture/diagrams/01-system-context.png)
+
+![layered architecture](docs/architecture/diagrams/02-layered-architecture.png)
+
+### Tech Stack
+
+- Django 5, PostgreSQL 16, pgvector
+- RAG, Prompt engineering, Context engineering
+- Ollama (chat script generation, embeddings)
+- Celery + Redis (ingestion, LLM, TTS, audio, publishing)
+- Chatterbox TTS + FFmpeg
+- Docker Compose, Nginx (staging / production)
+
+### Core Features
+
+- Operations Dashboard
+  - Monitors pipeline health, content sources, scripts, and per-episode stage progress.
+  - Separate from Django Admin; shared staff login at `/accounts/login/`.
+![content pipeline](docs/architecture/diagrams/03-content-pipeline.png)
+
+- News Ingestion & Article Intelligence
+  - Imports articles from RSS / newsletter providers.
+  - Summarizes, classifies, tags (fixed taxonomy), ranks, and selects script sources.
+![django apps](docs/architecture/diagrams/05-django-apps.png)
+
+- Multi-Stage Script Generation (LLM)
+  - Manual Generate Script from `/content/` (not Celery Beat).
+  - Pipeline: story brief → episode outline → chapter dialogue → critic/rewrite → coherence.
+  - Optional article RAG via pgvector when source text exceeds the token budget.
+![RAG path](docs/architecture/diagrams/08-rag-path.png)
+
+- Audio Generation & Pipeline
+  - Chatterbox TTS with intro / expert / beginner voice roles.
+  - FFmpeg concat, silence, optional intro/outro/BGM, loudness normalization.
+
+- Publishing
+  - RSS feed generation, optional YouTube adapter.
+  - Supabase “listener shelf” push for the public frontend (local factory → cloud shelf).
+
+- Jobs, Workflow & Observability
+  - Trackable Celery jobs with retry / cancel.
+  - Structured JSON logs, metrics, tracing, health probes.
+![async jobs](docs/architecture/diagrams/04-async-jobs.png)
+
+### Project Structure
+
+```text
+cast-it-podcast-builder/
+├── api/                    # REST API (v1)
+├── apps/                   # Django apps (models, admin, ops UI)
+│   ├── articles/
+│   ├── audio/
+│   ├── episodes/
+│   ├── knowledge/
+│   ├── operations/         # Dashboard / content / pipeline UI
+│   ├── providers/
+│   ├── publish/
+│   ├── scheduler/
+│   ├── scripts/
+│   └── ...
+├── config/                 # Django settings + Celery
+├── domain/                 # DTOs, enums, exceptions, schemas
+├── infrastructure/         # LLM, TTS, vector store, deployment adapters
+├── services/               # Business logic (scripts, knowledge, publish, …)
+├── templates/prompts/      # LLM prompt templates
+├── docker/                 # Dockerfile, entrypoint, Nginx, Gunicorn
+├── scripts/                # start/stop, admin, auth helpers
+├── docs/                   # Architecture diagrams, deployment notes
+├── supabase/               # Listener DB migrations
+├── tests/
+├── docker-compose.yml
+├── requirements/
+│   ├── base.txt
+│   └── dev.txt
+└── manage.py
+```
+
+Deployment details: [docs/deployment.md](docs/deployment.md).  
+Architecture diagrams: [docs/architecture/diagrams/](docs/architecture/diagrams/).
+
+
+## Table of Instructions
+
+1. [Prerequisites](#prerequisites)
+2. [Installation from Scratch](#installation-from-scratch)
+3. [Environment Variables](#environment-variables)
+4. [Database Migration](#database-migration)
+5. [Management Commands Reference](#management-commands-reference)
+6. [Recommended First-Run Pipeline](#recommended-first-run-pipeline)
+7. [Docker and Daily Development Commands](#docker-and-daily-development-commands)
+8. [Built-in Django Commands](#built-in-django-commands)
+9. [Ollama Setup](#ollama-setup)
+10. [Chatterbox TTS Setup](#chatterbox-tts-setup)
+11. [Celery Background Tasks](#celery-background-tasks)
+12. [Post-Install Verification](#post-install-verification)
+13. [Testing](#testing)
+14. [Operations Dashboard](#operations-dashboard)
+15. [Listener Distribution (Supabase)](#listener-distribution-supabase)
+16. [API Overview](#api-overview)
 
 ---
 
 ## Prerequisites
 
-| Tool | Version | Notes |
-|------|---------|-------|
-| Python | 3.13+ | Required for local development |
-| Docker & Docker Compose | v2+ | Recommended for full stack |
-| PostgreSQL | 16 + pgvector | Provided via Docker image |
-| Redis | 7+ | Provided via Docker |
-| Ollama | — | Optional; needed for LLM/embeddings |
-| Chatterbox | — | Optional; needed for TTS |
-| FFmpeg | — | Required for audio pipeline (included in prod image) |
+| Item | Version / Notes |
+|------|-----------------|
+| Git | Any recent version |
+| Docker | 20.10+ |
+| Docker Compose | v2 (`docker compose` subcommand) |
+| Disk space | 5 GB+ recommended (Postgres volume, media, models) |
+| Ollama (optional) | Host install for script generation + embeddings; CRUD / RSS import work without it |
+| Chatterbox (optional) | Host TTS server for audio generation |
+| FFmpeg | Included in Docker images; needed on host for non-Docker audio runs |
+
+Verify Docker is available:
+
+```bash
+docker info
+docker compose version
+```
 
 ---
 
-## Initial Setup
+## Installation from Scratch
 
-Follow these steps the first time you clone the repository.
+The steps below assume you are in the **project root** (contains `docker-compose.yml` and `manage.py`).
 
-### 1. Clone the repository
+### Step 1: Clone the repository
 
 ```bash
-git clone https://github.com/your-org/cast-it-podcast-builder.git
+git clone git@github.com:wenyenhsu/cast-it-podcast-builder.git
 cd cast-it-podcast-builder
 ```
 
-### 2. Create environment file
+### Step 2: Create the environment file
 
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env` and set at minimum:
+Edit `.env` as needed (see [Environment Variables](#environment-variables)). At minimum set:
 
 ```bash
 DJANGO_SECRET_KEY=your-secret-key-here
-POSTGRES_PASSWORD=cast_it          # or a strong password
-OLLAMA_CHAT_MODEL=gemma3:12b       # must match a model pulled in Ollama
-OLLAMA_EMBED_MODEL=nomic-embed-text
+WEB_PORT=8000
+OLLAMA_CHAT_MODEL=gemma3:12b
+OLLAMA_EMBED_MODEL=nomic-embed-text:latest
 ```
 
 > Never commit `.env` files containing real secrets.
 
-### 3. Start with Docker (recommended)
+### Step 3: Build and start all services
 
 ```bash
 ./scripts/start.sh
 ```
 
-On success, the script prints the URLs for your stack, for example:
+Or manually:
 
+```bash
+docker compose build
+docker compose up -d
 ```
+
+This starts:
+
+| Service | Purpose | Exposed port |
+|---------|---------|--------------|
+| `web` | Django (runs `migrate` on startup) | `WEB_PORT` (default random / `8000`) |
+| `db` | PostgreSQL 16 + pgvector | internal only |
+| `redis` | Celery broker / cache | internal only |
+| `celery-worker` | Background tasks | — |
+| `celery-beat` | Scheduler | — |
+
+`db` and `redis` are **not** published to the host by default (avoids conflicts with local Postgres/Redis). Use `docker-compose.host-access.yml` when you need host ports.
+
+Check container status:
+
+```bash
+docker compose ps
+```
+
+On success, `./scripts/start.sh` prints URLs similar to:
+
+```text
 Cast It is running.
 
-  API base:   http://localhost:32768/api/v1/
-  Health:     http://localhost:32768/api/v1/health/live/
-  API docs:   http://localhost:32768/api/v1/docs/
-  Dashboard:  http://localhost:32768/
-  Admin:      http://localhost:32768/admin/
-  Version:    http://localhost:32768/api/v1/version/
-
-Web port on host: 32768
+  API base:   http://localhost:8000/api/v1/
+  Health:     http://localhost:8000/api/v1/health/live/
+  API docs:   http://localhost:8000/api/v1/docs/
+  Dashboard:  http://localhost:8000/
+  Admin:      http://localhost:8000/admin/
 ```
 
-Stop the stack:
+### Step 4: Confirm migrations are applied
+
+The `web` container runs migrations on startup via `docker/entrypoint.sh`. Verify:
 
 ```bash
-./scripts/stop.sh
+docker compose exec web python manage.py showmigrations
 ```
 
-#### Docker services (local)
-
-| Service | Host port | Description |
-|---------|-----------|-------------|
-| `web` | dynamic or fixed (see below) | Django API server |
-| `db` | internal only | PostgreSQL with pgvector |
-| `redis` | internal only | Cache & Celery broker |
-| `celery-worker` | — | Background job worker |
-| `celery-beat` | — | Scheduled task runner |
-
-`db` and `redis` are **not** published to the host by default. This avoids conflicts when PostgreSQL (5432) or Redis (6379) are already running locally. Containers communicate over the internal Docker network.
-
-Migrations run automatically on container start via `docker/entrypoint.sh`.
-
-#### Port configuration
-
-| Variable | Value | Behavior |
-|----------|-------|----------|
-| `WEB_PORT` | `0` or unset | Random host port (default) |
-| `WEB_PORT` | `8000` | Fixed host port |
-
-Add to `.env`:
+If any migration shows `[ ]`, run:
 
 ```bash
-WEB_PORT=0      # dynamic port — recommended when 8000 may be in use
-# WEB_PORT=8000 # fixed port
+docker compose exec web python manage.py migrate
 ```
 
-To look up the current web port after starting:
-
-```bash
-docker compose port web 8000
-```
-
-### 4. Create staff login (Operations Dashboard)
-
-The **Operations Dashboard** at `/` and **Django Admin** at `/admin/` share the same user accounts but are separate interfaces. Create a staff account after the stack is running:
-
-**Docker (recommended):**
+### Step 5: Create an admin / staff user
 
 ```bash
 docker compose exec web python manage.py createsuperuser
 ```
 
-Or use the helper script:
+Or:
 
 ```bash
 USE_DOCKER=true ./scripts/create-admin.sh
 ```
 
-Follow the prompts for **Username**, **Email** (optional), and **Password** (typed twice; characters are hidden).
+### Step 6: (Optional) Install Ollama on the host and pull models
 
-**Local Django (without Docker for web):**
-
-```bash
-python manage.py createsuperuser
-```
-
-Then open the URLs printed by `./scripts/start.sh`, for example:
-
-```
-http://localhost:32768/          # Operations Dashboard
-http://localhost:32768/admin/    # Django Admin (model CRUD)
-http://localhost:32768/accounts/login/   # Shared login
-```
-
-| Account type | Access |
-|--------------|--------|
-| **Superuser** (`createsuperuser`) | Full Operations dashboard + Django Admin |
-| **Administrator / Operator / Reviewer** | Role-based access via Admin groups |
-
-**Reset a forgotten password:**
+Run on the **host machine** (not inside the container):
 
 ```bash
-docker compose exec web python manage.py changepassword <username>
+# Install Ollama: https://ollama.com
+ollama pull gemma3:12b
+ollama pull nomic-embed-text
 ```
 
-**Operations dashboard pages** (login at `/accounts/login/`):
+Containers reach host Ollama at `http://host.docker.internal:11434` by default.
 
-| Path | Purpose |
-|------|---------|
-| `/` | Overview dashboard |
-| `/content/` | Unified article table (RSS + Manual) with script source checkboxes |
-| `/scripts/` | Generated script list (`?episode=<id>` to filter) |
-| `/scripts/<script-id>/` | Script detail with dialogue segments |
-| `/providers/` | LLM, TTS, and Information Resources (`?tab=sources&resource=rss\|manual`) |
-| `/monitor/` | Health, metrics, and logs (tabbed) |
-| `/pipeline/<episode-id>/` | Episode pipeline status |
+### Step 7: (Optional) Start Chatterbox TTS on the host
 
-Legacy paths `/health/`, `/metrics/`, and `/logs/` redirect to `/monitor/` with the matching tab.
+Point `CHATTERBOX_BASE_URL` at your Chatterbox server (default `http://host.docker.internal:8004`).
 
-### 5. Local development (without Docker for the app)
-
-Run Django on the host while database and Redis stay in Docker:
+### Step 8: Validate config and open the UI
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate        # Windows: .venv\Scripts\activate
-pip install -r requirements/dev.txt
-cp .env.example .env
+docker compose exec web python manage.py validate_config --warn-only
+```
 
-# Start db + redis with host ports for local tools
+| Page | URL |
+|------|-----|
+| Operations Dashboard | http://localhost:8000/ |
+| Django Admin | http://localhost:8000/admin/ |
+| API docs | http://localhost:8000/api/v1/docs/ |
+
+Basic installation is complete.
+
+---
+
+## Environment Variables
+
+`.env.example` highlights (see the file for the full list):
+
+```env
+DJANGO_SETTINGS_MODULE=config.settings.development
+DJANGO_SECRET_KEY=change-me-in-production
+DJANGO_DEBUG=True
+DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1
+TIME_ZONE=America/Los_Angeles
+
+POSTGRES_DB=cast_it
+POSTGRES_USER=cast_it
+POSTGRES_PASSWORD=cast_it
+POSTGRES_HOST=localhost          # overridden to `db` inside Compose
+POSTGRES_PORT=5432
+
+REDIS_URL=redis://localhost:6379/0
+WEB_PORT=8000
+
+LLM_PROVIDER=ollama
+OLLAMA_BASE_URL=http://host.docker.internal:11434
+OLLAMA_CHAT_MODEL=gemma3:12b
+OLLAMA_EMBED_MODEL=nomic-embed-text:latest
+LLM_TEMPERATURE=0.3
+OLLAMA_NUM_CTX=16384
+LLM_TIMEOUT=60
+
+RAG_ENABLED=true
+RAG_TOP_K=10
+RAG_VECTOR_STORE=pgvector
+
+TTS_PROVIDER=chatterbox
+CHATTERBOX_BASE_URL=http://host.docker.internal:8004
+```
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `WEB_PORT` | `0` / unset = random | Host port for Django web |
+| `LLM_TIMEOUT` | `60` | LLM HTTP timeout (seconds); raise for long script runs |
+| `SCRIPT_SOURCE_MAX_TOKENS` | `3500` | Per-article source budget before RAG kicks in |
+| `SCRIPT_POST_COHERENCE_CRITIC` | `false` | Extra critic loop after coherence (more LLM calls) |
+| `RAG_ENABLED` | `true` | Enable pgvector RAG for script enrichment |
+| `BEAT_IMPORT_NEWS_CRON` | `0 6 * * *` | Daily news import |
+| `BEAT_EPISODE_PLANNING_CRON` | `0 7 * * *` | Daily episode planning |
+| `BEAT_GENERATE_AUDIO_CRON` | `0 9 * * *` | Daily audio generation |
+| `BEAT_PUBLISH_EPISODE_CRON` | `0 10 * * *` | Daily publish |
+| `BEAT_PUBLISH_SUPABASE_CRON` | `25 7 * * *` | Supabase shelf sync |
+| `BEAT_RETRY_SWEEP_CRON` | `*/30 * * * *` | Retry failed jobs |
+| `BEAT_HEALTH_CHECK_CRON` | `*/15 * * * *` | Provider health check |
+| `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | empty | Required for listener shelf publishing |
+| `ENABLE_RSS_PUBLISHING` | `true` | Write local RSS feed |
+| `ENABLE_YOUTUBE_PUBLISHING` | `false` | YouTube adapter |
+
+Script generation is **manual** from `/content/` — there is no Beat schedule for it.
+
+---
+
+## Database Migration
+
+### Overview
+
+- Migration files live in `apps/<app>/migrations/`.
+- **Fresh database**: run `migrate` only; no `makemigrations` unless you change models.
+- **After pulling new code**: run `showmigrations`, then `migrate`.
+
+### First-time install
+
+```bash
+docker compose exec web python manage.py showmigrations
+docker compose exec web python manage.py migrate
+docker compose exec web python manage.py showmigrations
+```
+
+### After changing models (developers)
+
+```bash
+docker compose exec web python manage.py makemigrations
+docker compose exec web python manage.py migrate
+```
+
+### Common migration errors
+
+| Error | Cause | Fix |
+|-------|-------|-----|
+| `relation "xxx" does not exist` | DB not migrated | `python manage.py migrate` |
+| Migration conflict | Concurrent model changes | Merge migrations or reset dev DB volume |
+
+Reset the development database (**deletes all data**):
+
+```bash
+docker compose down -v
+docker compose up -d
+docker compose exec web python manage.py migrate
+docker compose exec web python manage.py createsuperuser
+```
+
+---
+
+## Management Commands Reference
+
+> **Docker command prefix**  
+> From the project root:  
+> `docker compose exec web python manage.py <command> [options]`
+
+Custom commands:
+
+### `validate_config`
+
+Validates environment variables for the current deployment target.
+
+```bash
+docker compose exec web python manage.py validate_config
+docker compose exec web python manage.py validate_config --warn-only
+docker compose exec web python manage.py validate_config --environment production
+```
+
+| Option | Description |
+|--------|-------------|
+| `--environment` | Override `ENVIRONMENT` for validation |
+| `--warn-only` | Print warnings without failing |
+
+**When to run**: After editing `.env`, before staging/prod deploys.
+
+---
+
+### `bootstrap_voices`
+
+Creates or repairs intro / expert / beginner voice mappings for Chatterbox TTS.
+
+```bash
+docker compose exec web python manage.py bootstrap_voices
+```
+
+**When to run**: After configuring Chatterbox voices, or when TTS roles are missing.
+
+---
+
+### `publish_supabase`
+
+Uploads final episode audio + metadata to Supabase (listener shelf). Also syncs the tag taxonomy.
+
+```bash
+# All publishable episodes
+docker compose exec web python manage.py publish_supabase
+
+# Single episode
+docker compose exec web python manage.py publish_supabase --episode-id <uuid>
+```
+
+| Option | Description |
+|--------|-------------|
+| `--episode-id <uuid>` | Publish one episode only |
+
+**Prerequisites**: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, final audio on the episode.
+
+---
+
+### `prune_script_schedule`
+
+Removes leftover automatic script-generation Beat entries (script gen is manual-only).
+
+```bash
+docker compose exec web python manage.py prune_script_schedule
+```
+
+---
+
+## Recommended First-Run Pipeline
+
+For a **full-featured** local smoke test (import → plan → script → audio → publish):
+
+```bash
+# 0. Stack + admin
+./scripts/start.sh
+docker compose exec web python manage.py createsuperuser
+docker compose exec web python manage.py validate_config --warn-only
+
+# 1. Host AI services
+ollama pull gemma3:12b
+ollama pull nomic-embed-text
+# Start Chatterbox on the host if you need TTS
+
+# 2. In Operations Dashboard (/)
+#    - Providers → add an RSS news source
+#    - Content → import / select articles for script
+#    - Content → Generate Script (manual)
+#    - Pipeline → confirm stage durations
+#    - TTS / audio when ready
+
+# 3. Optional: push to listener shelf
+make publish-supabase
+```
+
+Makefile shortcuts for scheduled pipeline steps (via Celery task entrypoints):
+
+```bash
+make import-news
+make plan-episode
+make generate-audio
+make publish
+```
+
+For **CRUD / dashboard only** (no AI), steps 0 + staff user are enough.
+
+---
+
+## Docker and Daily Development Commands
+
+```bash
+# Preferred local start / stop
+./scripts/start.sh
+./scripts/stop.sh
+
+# Or Makefile
+make up
+make down
+make build
+make rebuild
+make restart
+
+# Logs
+make logs
+make logs-web
+make logs-worker
+make logs-beat
+
+# Django helpers
+make shell
+make bash
+make migrate
+make createsuperuser
+
+# DB / Redis
+make db-shell
+make redis-cli
+
+# Expose db/redis on the host (for local pytest / psql)
 docker compose -f docker-compose.yml -f docker-compose.host-access.yml up -d db redis
 export POSTGRES_PORT="$(docker compose port db 5432 | cut -d: -f2)"
-
-python manage.py migrate
-python manage.py createsuperuser   # optional
-python manage.py runserver
 ```
 
-Start Celery in separate terminals:
+Compose files:
+
+| File | Purpose |
+|------|---------|
+| `docker-compose.yml` | Local development |
+| `docker-compose.host-access.yml` | Optional host ports for db / redis |
+| `docker-compose.staging.yml` | Staging (Gunicorn + Nginx) |
+| `docker-compose.prod.yml` | Production |
+
+![docker deployment](docs/architecture/diagrams/07-docker-deployment.png)
+
+---
+
+## Built-in Django Commands
+
+All use the `docker compose exec web python manage.py` prefix.
+
+| Command | Purpose |
+|---------|---------|
+| `check` | Validate Django settings |
+| `shell` / `shell_plus` | Django ORM shell |
+| `dbshell` | Database CLI |
+| `createsuperuser` | Create admin user |
+| `changepassword <username>` | Reset password |
+| `showmigrations` | Migration status |
+| `makemigrations` | Generate migrations |
+| `migrate` | Apply migrations |
+| `collectstatic` | Collect static files |
+| `test` | Django test runner |
+| `clearsessions` | Remove expired sessions |
+
+Examples:
 
 ```bash
-celery -A config worker --loglevel=info -Q ingestion,llm,tts,audio,publishing,monitoring,celery
-celery -A config beat --loglevel=info \
-  --scheduler django_celery_beat.schedulers:DatabaseScheduler
+docker compose exec web python manage.py check
+docker compose exec web python manage.py shell
+docker compose exec web python manage.py collectstatic --noinput
 ```
 
-### 6. Pull required AI models (Ollama)
+---
+
+## Ollama Setup
+
+1. Install and start Ollama on the host.
+2. Pull models:
 
 ```bash
 ollama pull gemma3:12b
 ollama pull nomic-embed-text
 ```
 
-Ensure `OLLAMA_BASE_URL` in `.env` points to your Ollama instance (default: `http://localhost:11434`).
-
-### 7. Verify installation
+3. Verify the API on the host:
 
 ```bash
-pytest
-python manage.py validate_config --warn-only
+curl http://localhost:11434/api/tags
 ```
 
-Open the API docs using the port from `./scripts/start.sh` or `docker compose port web 8000`.
+4. Default URL inside Docker: `OLLAMA_BASE_URL=http://host.docker.internal:11434`  
+   On Linux, if `host.docker.internal` fails, set the host IP in `.env`.
+
+Features that depend on Ollama:
+
+- Article summarize / classify / rank
+- Multi-stage script generation
+- Embeddings for RAG indexing / retrieval
+
+**RAG note:** When `RAG_ENABLED=true`, articles are indexed into pgvector. During script generation, per-article RAG context is assembled only if cleaned source text exceeds `SCRIPT_SOURCE_MAX_TOKENS`; otherwise the model uses the truncated article source directly.
 
 ---
 
-## Docker Compose Files
+## Chatterbox TTS Setup
 
-| File | Purpose |
-|------|---------|
-| [`docker-compose.yml`](docker-compose.yml) | Local development stack |
-| [`docker-compose.host-access.yml`](docker-compose.host-access.yml) | Optional override — expose `db` / `redis` on the host |
-| [`docker-compose.staging.yml`](docker-compose.staging.yml) | Staging (Gunicorn + Nginx) |
-| [`docker-compose.prod.yml`](docker-compose.prod.yml) | Production deployment |
+1. Run your local Chatterbox TTS server on the host (see the `Chatterbox-TTS-Server/` folder if present, or your own install).
+2. Ensure voices exist for intro / expert / beginner roles (or leave defaults empty to auto-pick).
+3. Set in `.env`:
 
-### Expose database or Redis on the host
-
-Useful for running `pytest` or `psql` from the host without port conflicts:
-
-```bash
-# Dynamic host ports (recommended)
-docker compose -f docker-compose.yml -f docker-compose.host-access.yml up -d db
-
-# Or fixed host ports
-POSTGRES_HOST_PORT=5435 docker compose \
-  -f docker-compose.yml -f docker-compose.host-access.yml up -d db
+```env
+TTS_PROVIDER=chatterbox
+CHATTERBOX_BASE_URL=http://host.docker.internal:8004
+CHATTERBOX_DEFAULT_VOICE=
+CHATTERBOX_VOICE_INTRO=
+CHATTERBOX_VOICE_EXPERT=
+CHATTERBOX_VOICE_BEGINNER=
 ```
 
-Resolve the assigned port:
+4. Bootstrap voice mappings if needed:
 
 ```bash
-docker compose port db 5432
+docker compose exec web python manage.py bootstrap_voices
+```
+
+On Apple Silicon, Chatterbox may need `PYTORCH_ENABLE_MPS_FALLBACK=1` or `tts_engine.device: cpu` in its config.
+
+---
+
+## Celery Background Tasks
+
+```bash
+docker compose logs -f celery-worker
+docker compose logs -f celery-beat
+```
+
+### Scheduled tasks (Celery Beat)
+
+| Beat key | Task | Default cron | Purpose |
+|----------|------|--------------|---------|
+| `daily-news-import` | `scheduler.tasks.import_news.import_news_scheduled` | `0 6 * * *` | Import news |
+| `daily-episode-planning` | `scheduler.tasks.planning.episode_planning_scheduled` | `0 7 * * *` | Plan episodes |
+| `daily-audio-generation` | `scheduler.tasks.audio.generate_audio_scheduled` | `0 9 * * *` | Generate audio |
+| `daily-publishing` | `scheduler.tasks.publish.publish_episode_scheduled` | `0 10 * * *` | Publish episodes |
+| `daily-supabase-publish` | `scheduler.tasks.publish.publish_supabase_scheduled` | `30 10 * * *` | Push to Supabase shelf |
+| `failed-job-retry-sweep` | `scheduler.tasks.monitoring.retry_failed_jobs_scheduled` | `*/30 * * * *` | Retry failed jobs |
+| `provider-health-check` | `scheduler.tasks.monitoring.provider_health_check_scheduled` | `*/15 * * * *` | LLM / TTS health |
+
+Worker queues (see `CELERY_WORKER_QUEUES`):
+
+`ingestion`, `llm`, `tts`, `audio`, `publishing`, `monitoring`, `celery`
+
+**Script generation is not scheduled** — trigger it from `/content/` → **Generate Script**.
+
+---
+
+## Post-Install Verification
+
+### 1. HTTP and Admin
+
+- http://localhost:8000/ loads (Operations Dashboard)
+- http://localhost:8000/admin/ accepts superuser login
+- http://localhost:8000/api/v1/docs/ shows OpenAPI UI
+
+### 2. Health probes
+
+```bash
+curl http://localhost:8000/api/v1/health/live/
+curl http://localhost:8000/api/v1/health/ready/
+curl http://localhost:8000/api/v1/version/
+```
+
+### 3. pgvector extension
+
+```bash
+docker compose exec db psql -U cast_it -d cast_it \
+  -c "SELECT * FROM pg_extension WHERE extname = 'vector';"
+```
+
+You should see one row for `vector`.
+
+### 4. All migrations applied
+
+```bash
+docker compose exec web python manage.py showmigrations
+```
+
+Every entry should show `[X]`.
+
+### 5. Config validation
+
+```bash
+docker compose exec web python manage.py validate_config --warn-only
+```
+
+### 6. Knowledge / RAG (optional)
+
+```bash
+docker compose exec web python manage.py shell -c "
+from django.conf import settings
+from apps.knowledge.models import KnowledgeChunk
+print('RAG_ENABLED', settings.RAG_ENABLED)
+print('chunks', KnowledgeChunk.objects.count())
+"
+```
+
+---
+
+## Testing
+
+The project uses pytest (see `pyproject.toml`).
+
+```bash
+# Inside the web container
+make test
+# or
+docker compose exec web python -m pytest tests/ -v
+
+# Fail fast
+make test-fast
+
+# On the host (db/redis exposed)
+docker compose -f docker-compose.yml -f docker-compose.host-access.yml up -d db redis
 export POSTGRES_PORT="$(docker compose port db 5432 | cut -d: -f2)"
+pip install -r requirements/dev.txt
 pytest
 ```
 
 ---
 
-## Project Structure
+## Operations Dashboard
 
-```
-cast-it-podcast-builder/
-├── config/                        Django settings (dev, testing, staging, production)
-├── apps/                          Django applications (models, admin)
-├── services/                      Business logic layer
-├── domain/                        DTOs, enums, exceptions, state machines
-├── infrastructure/                External adapters (Celery, LLM, TTS, deployment)
-├── api/                           REST API (v1)
-├── docker/                        Dockerfile, entrypoint, Nginx, Gunicorn config
-├── scripts/                       Operational helper scripts
-├── docs/                          Deployment documentation
-├── tests/                         Test suite (310+ tests)
-├── docker-compose.yml             Local development
-├── docker-compose.host-access.yml Optional db/redis host ports
-├── docker-compose.staging.yml     Staging
-└── docker-compose.prod.yml        Production
-```
+Login: `/accounts/login/` (same accounts as Django Admin).
 
----
+| Path | Purpose |
+|------|---------|
+| `/` | Overview dashboard |
+| `/content/` | Articles + script sources; **Generate Script** |
+| `/scripts/` | Generated scripts (`?episode=<id>`) |
+| `/scripts/<script-id>/` | Script detail / segments |
+| `/providers/` | LLM, TTS, RSS / manual sources |
+| `/monitor/` | Health, metrics, logs |
+| `/pipeline/<episode-id>/` | Per-episode pipeline stages + durations |
 
-## Pipeline Overview
-
-The default workflow (`podcast_production` v1) orchestrates:
-
-```
-Knowledge Ingestion
-       ↓
-Article Processing (summarize → classify → rank)
-       ↓
-Episode Planning
-       ↓
-Script Generation
-       ↓
-Audio Generation
-       ↓
-Audio Pipeline (FFmpeg)
-       ↓
-Publishing
-```
-
-Each step is trackable, retryable, resumable, and cancelable via the workflow engine.
-
----
-
-## Article Tagging (Fixed Taxonomy)
-
-Articles are labeled two ways during the intelligence pipeline:
-
-- **Category** — one broad bucket per article (AI, Programming, Cloud, …) via `templates/prompts/classification.md`.
-- **Tags** — **1 to 3 tags chosen from a fixed tech taxonomy** (`ALLOWED_TAGS` in `domain/intelligence/constants.py`: Algorithms, LLM, Claude Fable, Machine Learning, Data Science, Infrastructure, Networking, Security, Privacy, UI/UX, Web Development, Mobile, Cloud, DevOps, Databases, Programming Languages, Open Source, Hardware, Robotics, Startups).
-
-Rules enforced by `services/intelligence/keyword_service.py`:
-
-- The LLM must pick from the allowed list; anything else is dropped (`canonicalize_tags`).
-- An article's tags are **replaced** on each extraction, capped at 3.
-- RSS/source-provided tags are kept only when they match the taxonomy.
-
-**Adding a new tag** is a one-line change: append it to `ALLOWED_TAGS`. The next
-`publish_supabase` run upserts the full taxonomy into Supabase (`sync_taxonomy()`),
-so the two sides never drift. Removed tags are kept in Supabase because published
-episodes may still reference them.
+Legacy `/health/`, `/metrics/`, `/logs/` redirect into `/monitor/`.
 
 ---
 
 ## Listener Distribution (Supabase)
 
-The listener frontend ([cast-it-frontend](https://github.com/shuseiyokoi/cast-it-frontend))
-does not talk to this Django backend. Generation happens locally; finished episodes
-are pushed to a Supabase project that serves the public app ("local factory, cloud shelf").
+The listener frontend ([cast-it-frontend](https://github.com/shuseiyokoi/cast-it-frontend)) does not talk to this Django backend directly. Generation happens locally; finished episodes are pushed to Supabase ("local factory, cloud shelf").
 
-```
-Local pipeline (this repo)                    Supabase                     Listener app
-────────────────────────────                  ─────────────────────────    ─────────────────────
-generate episode + final audio ──ㅤpublishㅤ─▶ episodes / episode_tags  ─▶  personalized feed
-                                              storage: episode-audio   ─▶  audio streaming
-                                              activity_events          ◀─  play / progress events
-                                              profiles + auth               login / signup
+```text
+Local pipeline (this repo)          Supabase                      Listener app
+──────────────────────────          ─────────────────────────     ────────────────
+episode + final audio ── publish ─▶ episodes / episode_tags  ──▶ personalized feed
+                                    storage: episode-audio   ──▶ audio streaming
+                                    activity_events          ◀── play / progress
 ```
 
 ```bash
-make publish-supabase   # sync taxonomy + push all episodes with final audio
-# or a single episode:
+make publish-supabase
+# or
 docker compose exec web python manage.py publish_supabase --episode-id <uuid>
 ```
 
-What it does (`services/publish/supabase_publisher.py`):
-
-1. Upserts the tag taxonomy into `tags`.
-2. Uploads the final MP3 to the public `episode-audio` storage bucket.
-3. Upserts the episode row (title, summary, duration, audio URL, category).
-4. Replaces the episode's `episode_tags` with the top 3 taxonomy tags across its articles.
-
-Schema lives in `supabase/migrations/` (apply with `supabase db push`). Interest-based
-ranking is done in-database by `personal_feed(p_session_id)`: it scores each tag by the
-caller's listening time (30s heartbeats, completes, plays from `activity_events`) and
-orders episodes by the summed score of their tags — for logged-in users (`auth.uid()`)
-and anonymous sessions alike.
-
-Required env vars (see `.env.example`): `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`,
-`SUPABASE_AUDIO_BUCKET`.
+Required env vars: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_AUDIO_BUCKET`.  
+Schema: `supabase/migrations/`.
 
 ---
 
-## End-to-End Usage
+## API Overview
 
-Two ways to run the pipeline:
-
-| Mode | When to use |
-|------|-------------|
-| **Scheduled (automatic)** | Daily production — Celery Beat runs import → plan → script → audio → publish on cron |
-| **Manual (API)** | First-time testing, debugging, or single-episode control |
-
-Set `BASE` to your API URL (port from `./scripts/start.sh`):
-
-```bash
-BASE=http://localhost:<port>/api/v1
-```
-
-### Prerequisites for generation
-
-- **Ollama** running with chat + embed models (`OLLAMA_CHAT_MODEL`, `OLLAMA_EMBED_MODEL`)
-- **Chatterbox** running for TTS (or configured TTS provider)
-- **News source** configured (RSS URL)
-- **Celery worker** running (`celery-worker` container or local worker)
-
-### Manual pipeline (step by step)
-
-Long-running API actions return **202 Accepted** with a `job_id`. Poll `GET /jobs/{job_id}/` until `status` is `succeeded`.
-
-| Step | Action | API |
-|------|--------|-----|
-| 0 | Check health | `GET /health/live/`, `GET /health/llm/`, `GET /health/tts/` |
-| 1 | Create news source | `POST /news-sources/` |
-| 2 | Import articles | `POST /articles/import/` with `{"source_id": "..."}` |
-| 3 | Create episode | `POST /episodes/` |
-| 4 | Plan episode | `POST /episodes/{id}/plan/` |
-| 5 | Generate script | `POST /episodes/{id}/generate-script/` |
-| 6 | Generate audio | `POST /episodes/{id}/generate-audio/` |
-| 7 | Publish | `POST /episodes/{id}/publish/` with `{"platforms": ["rss"]}` |
-
-**Example — import articles:**
-
-```bash
-curl -X POST $BASE/articles/import/ \
-  -H "Content-Type: application/json" \
-  -d '{"source_id": "YOUR_SOURCE_UUID"}'
-```
-
-**Example — plan and generate:**
-
-```bash
-curl -X POST $BASE/episodes/EPISODE_UUID/plan/
-curl -X POST $BASE/episodes/EPISODE_UUID/generate-script/
-curl -X POST $BASE/episodes/EPISODE_UUID/generate-audio/
-curl -X POST $BASE/episodes/EPISODE_UUID/publish/ \
-  -H "Content-Type: application/json" \
-  -d '{"platforms": ["rss"]}'
-```
-
-**Monitor jobs:**
-
-```bash
-curl $BASE/jobs/JOB_UUID/
-curl -X POST $BASE/jobs/JOB_UUID/retry/    # on failure
-curl -X POST $BASE/jobs/JOB_UUID/cancel/   # cancel running job
-```
-
-Use **Swagger UI** at `/api/v1/docs/` for interactive testing, or manage records in **Admin** at `/admin/`.
-
-### Scheduled (automatic) pipeline
-
-With `celery-beat` running, default cron jobs (configurable via `BEAT_*_CRON` in `.env`):
-
-| Default time | Job |
-|--------------|-----|
-| 06:00 | Import news |
-| 07:00 | Episode planning |
-| — | Script generation (manual from `/content/`) |
-| 09:00 | Audio generation |
-| 10:00 | Publish episode |
-
-Requires at least one enabled **news source** and healthy external services (Ollama, Chatterbox).
-
-### Recommended first run
-
-1. `./scripts/start.sh` — note the printed URLs  
-2. `createsuperuser` — log in at `/accounts/login/` (Dashboard at `/`, Admin at `/admin/`)  
-3. Create a **News Source** with a valid RSS URL  
-4. `POST /articles/import/` — wait for job success  
-5. `POST /episodes/` — create an episode  
-6. Run `plan` → `generate-script` → `generate-audio` → `publish` in order  
-7. Check `docker compose logs -f celery-worker` if jobs stay pending  
-
----
-
-## API Endpoints
-
-Base URL: `http://localhost:<port>/api/v1/` — use the port printed by `./scripts/start.sh`.
-
-### Core Resources
+Base URL: `http://localhost:<port>/api/v1/`
 
 | Resource | Path |
 |----------|------|
@@ -489,220 +753,23 @@ Base URL: `http://localhost:<port>/api/v1/` — use the port printed by `./scrip
 | Jobs | `/jobs/` |
 | News Sources | `/news-sources/` |
 
-Long-running actions (plan, generate-script, generate-audio, publish) return **202 Accepted** with a job reference.
+Long-running actions (`plan`, `generate-script`, `generate-audio`, `publish`) return **202 Accepted** with a `job_id`. Poll `GET /jobs/{job_id}/`.
 
-### Health, Observability & Version
+Health / observability:
 
 | Endpoint | Description |
 |----------|-------------|
-| `GET /health/` | Overall platform health |
-| `GET /health/live/` | Liveness probe |
-| `GET /health/ready/` | Readiness probe |
-| `GET /health/components/` | Per-component health |
-| `GET /metrics/` | Application metrics (JSON or `?format=prometheus`) |
-| `GET /metrics/summary/` | Metrics dashboard summary |
-| `GET /metrics/jobs/` | Job execution metrics |
-| `GET /metrics/workflows/` | Workflow execution metrics |
-| `GET /logs/` | Operational event logs |
-| `GET /traces/` | Distributed trace spans |
-| `GET /version/` | Build metadata (commit, tag, environment) |
+| `GET /health/live/` | Liveness |
+| `GET /health/ready/` | Readiness |
+| `GET /health/llm/` | LLM provider |
+| `GET /health/tts/` | TTS provider |
+| `GET /metrics/` | Metrics JSON / Prometheus |
+| `GET /version/` | Build metadata |
 
-Interactive API docs: `/api/v1/docs/` (Swagger) · `/api/v1/redoc/` (ReDoc)
-
----
-
-## Development Commands
-
-```bash
-# Stack lifecycle
-./scripts/start.sh          # start dev stack, print URLs
-./scripts/stop.sh           # stop dev stack
-
-# Quality & database
-./scripts/test.sh
-./scripts/lint.sh
-./scripts/format.sh
-./scripts/migrate.sh
-./scripts/collectstatic.sh
-USE_DOCKER=true ./scripts/create-admin.sh   # create Admin login (Docker)
-
-# Or run tools directly
-pytest
-ruff check .
-black .
-mypy .
-python manage.py makemigrations
-python manage.py migrate
-python manage.py validate_config --warn-only
-```
-
-### Running tests with pgvector
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.host-access.yml up -d db
-export POSTGRES_PORT="$(docker compose port db 5432 | cut -d: -f2)"
-pytest
-```
-
----
-
-## Troubleshooting
-
-### Port already allocated
-
-If you see `Bind for 0.0.0.0:6379 failed: port is already allocated`:
-
-- Use `./scripts/start.sh` with the default `WEB_PORT=0` — `db` and `redis` are no longer bound to the host.
-- For a fixed web port, ensure `WEB_PORT=8000` is free, or keep `WEB_PORT=0`.
-
-### Cannot reach the API
-
-```bash
-docker compose ps
-docker compose logs -f web
-docker compose port web 8000
-```
-
-### Web container keeps restarting
-
-```bash
-docker compose logs web
-docker compose exec web python manage.py migrate
-```
-
-### Cannot log in to Admin
-
-No default account exists. Create one:
-
-```bash
-docker compose exec web python manage.py createsuperuser
-```
-
-Reset password:
-
-```bash
-docker compose exec web python manage.py changepassword <username>
-```
-
----
-
-## Environment Variables
-
-Configuration is fully environment-driven. Example files:
-
-| File | Purpose |
-|------|---------|
-| [`.env.example`](.env.example) | Local development |
-| [`.env.staging.example`](.env.staging.example) | Staging deployment |
-| [`.env.production.example`](.env.production.example) | Production deployment |
-
-| Group | Key variables |
-|-------|--------------|
-| Django | `DJANGO_SECRET_KEY`, `DJANGO_DEBUG`, `DJANGO_ALLOWED_HOSTS` |
-| Docker (local) | `WEB_PORT`, `POSTGRES_HOST_PORT`, `REDIS_HOST_PORT` |
-| Database | `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST` |
-| Redis / Celery | `REDIS_URL`, `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND` |
-| LLM | `LLM_PROVIDER`, `OLLAMA_BASE_URL`, `OLLAMA_CHAT_MODEL`, `OLLAMA_EMBED_MODEL` |
-| RAG | `RAG_TOP_K`, `RAG_CHUNK_SIZE`, `RAG_EMBEDDING_DIMENSIONS` |
-| TTS | `TTS_PROVIDER`, `CHATTERBOX_BASE_URL` |
-| Audio | `FFMPEG_BINARY`, `AUDIO_TARGET_LUFS` |
-| Publishing | `ENABLE_RSS_PUBLISHING`, `ENABLE_YOUTUBE_PUBLISHING`, `RSS_FEED_*` |
-| Observability | `LOG_LEVEL`, `LOG_FORMAT`, `ENABLE_METRICS`, `ENABLE_TRACING` |
-| Deployment | `APP_VERSION`, `BUILD_GIT_COMMIT`, `IMAGE_TAG`, `USE_S3_STORAGE` |
-| Beat schedules | `BEAT_IMPORT_NEWS_CRON`, `BEAT_GENERATE_AUDIO_CRON`, etc. (script is manual via `/content/`) |
-
----
-
-## Deployment
-
-Full guide: **[docs/deployment.md](docs/deployment.md)**
-
-### Environments
-
-| Environment | Compose file | Settings module | Web server |
-|-------------|--------------|-----------------|------------|
-| Development | `docker-compose.yml` | `config.settings.development` | Django runserver |
-| Staging | `docker-compose.staging.yml` | `config.settings.staging` | Gunicorn + Nginx |
-| Production | `docker-compose.prod.yml` | `config.settings.production` | Gunicorn + Nginx |
-
-### Staging
-
-```bash
-cp .env.staging.example .env.staging
-docker compose -f docker-compose.staging.yml --env-file .env.staging up --build -d
-curl http://localhost:8080/api/v1/health/ready/
-```
-
-### Production
-
-```bash
-cp .env.production.example .env.production
-./scripts/build.sh
-docker compose -f docker-compose.prod.yml --env-file .env.production up -d
-curl http://localhost/api/v1/health/ready/
-curl http://localhost/api/v1/version/
-```
-
-### Operational scripts
-
-| Script | Purpose |
-|--------|---------|
-| `scripts/build.sh` | Build versioned production Docker image |
-| `scripts/start.sh` | Start dev stack and print access URLs |
-| `scripts/stop.sh` | Stop Docker Compose services |
-| `scripts/migrate.sh` | Run database migrations |
-| `scripts/collectstatic.sh` | Collect static files |
-| `scripts/backup-db.sh` | Backup PostgreSQL |
-| `scripts/verify-backup.sh` | Verify backup file integrity |
-
-### Rollback
-
-```bash
-export IMAGE_TAG=<previous-tag>
-docker compose -f docker-compose.prod.yml --env-file .env.production up -d
-```
-
----
-
-## CI/CD
-
-GitHub Actions workflow: [`.github/workflows/ci.yml`](.github/workflows/ci.yml)
-
-| Step | Tool |
-|------|------|
-| Lint | ruff |
-| Format check | black |
-| Type check | mypy |
-| Tests | pytest (with PostgreSQL + Redis services) |
-| Docker build | Production image verification |
-| Release | Tagged image build on `main` push |
-
----
-
-## Architecture Principles
-
-- **Clean architecture** — orchestration is separate from business services
-- **Dependency injection** — services accept adapters via constructor/protocol
-- **Adapter pattern** — external providers (LLM, TTS, publishers) are swappable
-- **Job-based async** — long operations dispatch Celery jobs; API returns 202
-- **Workflow engine** — explicit state machine for pipeline steps
-- **Observability as cross-cutting concern** — logging, metrics, and tracing stay out of business logic
-- **Environment-based config** — no hardcoded secrets, URLs, or credentials
-
----
-
-## External Services
-
-| Service | Default URL | Purpose |
-|---------|-------------|---------|
-| Ollama | `http://localhost:11434` | LLM chat + embeddings |
-| Chatterbox | `http://localhost:8004` | Text-to-speech |
-| FFmpeg | system PATH | Audio post-processing |
-
-Health checks for all external services are available under `/api/v1/health/`.
+Interactive docs: `/api/v1/docs/`.
 
 ---
 
 ## License
 
-Private / internal use. Update this section when a license is chosen.
+MIT License
