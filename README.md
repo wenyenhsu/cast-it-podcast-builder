@@ -10,13 +10,6 @@
   </a>
 </p>
 
-<blockquote>
-  <p align="center">
-    <strong>Nominated for the Participants’ Choice Award</strong><br>
-    2026 University of Southern California AI4SE Hackathon
-  </p>
-</blockquote>
-
 Cast It is a Django-based AI podcast production platform for news ingestion, article intelligence, multi-stage LLM script generation, TTS audio synthesis, FFmpeg post-processing, and multi-channel publishing.
 
 ---
