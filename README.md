@@ -2,14 +2,19 @@
 
 ![Cast It](img/logo-dark.png)
 
-Cast It is a Django-based AI podcast production platform for news ingestion, article intelligence, multi-stage LLM script generation, TTS audio synthesis, FFmpeg post-processing, and multi-channel publishing (RSS / YouTube / Supabase).
+Cast It is a Django-based AI podcast production platform for news ingestion, article intelligence, multi-stage LLM script generation, TTS audio synthesis, FFmpeg post-processing, and multi-channel publishing.
 
-
+## Cast It has been nominated for the Participants’ Choice Award at the 2026 University of Southern California AI4SE Hackathon.
 ---
 
 ## Architecture and Features
 
 ![Cast It System Architecture](img/cast-it-system-architecture.png)
+
+
+### Main components
+- Cast It Backend System : https://github.com/wenyenhsu/cast-it-podcast-builder
+- Cast It Frontend UI : https://github.com/shuseiyokoi/cast-it-frontend
 
 ### Tech Stack
 
@@ -39,9 +44,9 @@ Cast It is a Django-based AI podcast production platform for news ingestion, art
   - Chatterbox TTS with intro / expert / beginner voice roles.
   - FFmpeg concat, silence, optional intro/outro/BGM, loudness normalization.
 
-- Publishing &amp; Frontend
-  - Pipeline **Publish** step prepares episode assets and can distribute to YouTube / Spotify.
-  - **Frontend UI/UX**: dedicated **Cast It UI** → **Recommendation System** → personalized feed → playback/progress for each user.
+- Publishing
+  - **Publish**: YouTube / Spotify distribution channels.
+  - **Frontend UI/UX**: dedicated **Cast It UI**; **Recommendation System** recommends personalized episodes to users inside the app.
   - **Orchestration Engine Management**: Celery jobs, queues, observability, manual script generate, and **Ops Dashboard**.
   - Data infrastructure: **PostgreSQL + pgvector** with **Supabase** (auth / storage shelf).
 
