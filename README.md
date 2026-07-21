@@ -1,10 +1,24 @@
 # Cast It — AI Podcast Generator
 
-![Cast It](img/logo-dark.png)
+<p align="center">
+  <img src="img/logo-dark.png" alt="Cast It" width="280">
+</p>
+
+<p align="center">
+  <a href="https://github.com/wenyenhsu/cast-it-podcast-builder">
+    <img src="https://img.shields.io/badge/USC_AI4SE_Hackathon_2026-Participants%27%20Choice%20Award%20Nominee-0EA5E9?style=for-the-badge&labelColor=0B1220" alt="Nominated for the Participants' Choice Award at the 2026 USC AI4SE Hackathon">
+  </a>
+</p>
+
+<blockquote>
+  <p align="center">
+    <strong>Nominated for the Participants’ Choice Award</strong><br>
+    2026 University of Southern California AI4SE Hackathon
+  </p>
+</blockquote>
 
 Cast It is a Django-based AI podcast production platform for news ingestion, article intelligence, multi-stage LLM script generation, TTS audio synthesis, FFmpeg post-processing, and multi-channel publishing.
 
-## Cast It has been nominated for the Participants’ Choice Award at the 2026 University of Southern California AI4SE Hackathon.
 ---
 
 ## Architecture and Features
