@@ -67,6 +67,9 @@ class EpisodePlannerService:
                 publish_date=timezone.now().date(),
                 status=EpisodeStatus.DRAFT,
                 duration_seconds=estimated_duration,
+                # Pipeline-generated episodes go live automatically; manual
+                # episodes keep the publish gate for dashboard review.
+                publish=1,
             )
             for article in selected_articles:
                 EpisodeArticle.objects.create(episode=episode, article=article)
